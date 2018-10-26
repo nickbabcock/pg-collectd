@@ -1,4 +1,5 @@
 use chrono::prelude::*;
+use chrono::Duration;
 use collectd_plugin::{
     self, CollectdLoggerBuilder, ConfigItem, Plugin, PluginCapabilities, PluginManager,
     PluginRegistration, Value, ValueList,
@@ -76,7 +77,7 @@ impl PluginManager for PgCollectd {
 
 impl Plugin for PgCollectd {
     fn capabilities(&self) -> PluginCapabilities {
-        PluginCapabilities::WRITE
+        PluginCapabilities::WRITE | PluginCapabilities::FLUSH
     }
 
     fn write_values(&self, list: ValueList) -> Result<(), Error> {
@@ -120,6 +121,12 @@ impl Plugin for PgCollectd {
         v.clear();
         TEMP_BUF.with(|cell| cell.set(v));
 
+        Ok(())
+    }
+
+    fn flush(&self, _timeout: Option<Duration>, _identifier: Option<&str>) -> Result<(), Error> {
+        let mut inserter = self.inserter.lock();
+        inserter.flush().context("unable to flush to postgres")?;
         Ok(())
     }
 }

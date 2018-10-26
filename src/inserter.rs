@@ -25,40 +25,44 @@ impl PgInserter {
         stmt.copy_in(&[], &mut data)
     }
 
+    pub fn flush(&mut self) -> Result<(), postgres::Error> {
+        let start = Instant::now();
+        let res = if let Some(ref conn) = self.connection {
+            PgInserter::postgres_insert(conn, &self.buffer[..])
+        } else {
+            info!("initializing new connection");
+            let c = Connection::connect(self.uri.as_str(), TlsMode::None)?;
+            let res = PgInserter::postgres_insert(&c, &self.buffer[..])?;
+            self.connection = Some(c);
+            Ok(res)
+        };
+
+        if let Ok(rows) = res {
+            info!(
+                "inserted {} rows from {} values from {} bytes (capacity: {}) in {}ms",
+                rows,
+                self.batched,
+                self.buffer.len(),
+                self.buffer.capacity(),
+                Duration::from_std(Instant::now().duration_since(start))
+                    .map(|x| x.num_milliseconds())
+                    .map(|x| x.to_string())
+                    .unwrap_or_else(|_| String::from("<error>"))
+            );
+        } else {
+            self.connection = None
+        }
+
+        self.batched = 0;
+        self.buffer.clear();
+        res.map(|_| ())
+    }
+
     pub fn send_data(&mut self, data: &[u8], values: usize) -> Result<(), postgres::Error> {
         self.buffer.extend_from_slice(&data[..]);
         self.batched += values;
         if self.batched > self.batch_limit {
-            let start = Instant::now();
-            let res = if let Some(ref conn) = self.connection {
-                PgInserter::postgres_insert(conn, &self.buffer[..])
-            } else {
-                info!("initializing new connection");
-                let c = Connection::connect(self.uri.as_str(), TlsMode::None)?;
-                let res = PgInserter::postgres_insert(&c, &self.buffer[..])?;
-                self.connection = Some(c);
-                Ok(res)
-            };
-
-            if let Ok(rows) = res {
-                info!(
-                    "inserted {} rows from {} values from {} bytes (capacity: {}) in {}ms",
-                    rows,
-                    self.batched,
-                    self.buffer.len(),
-                    self.buffer.capacity(),
-                    Duration::from_std(Instant::now().duration_since(start))
-                        .map(|x| x.num_milliseconds())
-                        .map(|x| x.to_string())
-                        .unwrap_or_else(|_| String::from("<error>"))
-                );
-            } else {
-                self.connection = None
-            }
-
-            self.batched = 0;
-            self.buffer.clear();
-            res.map(|_| ())
+            self.flush()
         } else {
             Ok(())
         }
