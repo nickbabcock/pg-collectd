@@ -6,11 +6,12 @@ use collectd_plugin::{
 };
 use csv;
 use failure::Error;
+use failure::ResultExt;
 use inserter::PgInserter;
+use config::PgCollectdConfig;
 use log::LevelFilter;
 use parking_lot::Mutex;
 use std::cell::Cell;
-use failure::ResultExt;
 
 #[derive(Serialize, Debug)]
 struct Submission<'a> {
@@ -24,30 +25,9 @@ struct Submission<'a> {
     value: Value,
 }
 
-#[derive(Deserialize, Debug, Default)]
-#[serde(deny_unknown_fields)]
-struct PgCollectdConfig {
-    #[serde(rename = "Connection")]
-    connection: String,
-
-    #[serde(default = "batch_size_default", rename = "BatchSize")]
-    batch_size: usize,
-
-    #[serde(default = "store_rates_default", rename = "StoreRates")]
-    store_rates: bool
-}
-
-fn batch_size_default() -> usize {
-    100
-}
-
-fn store_rates_default() -> bool {
-    true
-}
-
 pub struct PgCollectd {
     inserter: Mutex<PgInserter>,
-    store_rates: bool
+    store_rates: bool,
 }
 
 impl PluginManager for PgCollectd {
@@ -81,6 +61,12 @@ impl Plugin for PgCollectd {
     }
 
     fn write_values(&self, list: ValueList) -> Result<(), Error> {
+        // We have a thread local csv buffer that we use to prep the payload. This should be a
+        // win-win:
+        //  - amortize allocations: allocations only needed on new threads or new list exceeds
+        //  previous capacity
+        //  - allows some concurrency as each payload can be prepped before needing to lock for a
+        //  (potential) insert
         thread_local!(static TEMP_BUF: Cell<Vec<u8>> = Cell::new(Vec::new()));
         let mut v = TEMP_BUF.with(|cell| cell.take());
         let len = list.values.len();
@@ -96,6 +82,8 @@ impl Plugin for PgCollectd {
                 Ok(::std::borrow::Cow::Borrowed(&list.values))
             }?;
 
+            // Filter our any NaN values (they occur for the first value of a rate, as two points
+            // are needed to determine a rate)
             for value in values.iter().filter(|x| !x.value.is_nan()) {
                 let submission = Submission {
                     timestamp: list.time,
@@ -115,7 +103,8 @@ impl Plugin for PgCollectd {
         }
 
         let mut inserter = self.inserter.lock();
-        inserter.send_data(&v[..], len)
+        inserter
+            .send_data(&v[..], len)
             .context("unable to insert into postgres")?;
 
         v.clear();

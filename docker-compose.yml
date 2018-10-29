@@ -1,0 +1,15 @@
+version: '3'
+services:
+  timescale:
+    build:
+      dockerfile: assets/Dockerfile.timescale
+      context: .
+    environment:
+      POSTGRES_PASSWORD: my_rust_test
+  app:
+    build:
+      dockerfile: assets/Dockerfile.tests
+      context: .
+    depends_on:
+      - timescale
+    command: ./assets/wait-for-it.sh timescale:5432 -- ./assets/ci-test.sh

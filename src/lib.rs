@@ -11,6 +11,7 @@ extern crate chrono;
 extern crate csv;
 extern crate parking_lot;
 
+mod config;
 mod inserter;
 mod plugin;
 

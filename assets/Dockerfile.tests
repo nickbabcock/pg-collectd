@@ -1,0 +1,18 @@
+ARG UBUNTU_VERSION=16.04
+FROM ubuntu:${UBUNTU_VERSION}
+
+# Annoying that UBUNTU_VERSION has to be specified again
+ARG UBUNTU_VERSION=16.04
+ARG COLLECTD_VERSION=5.5
+ARG RUST_TARGET=stable
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    collectd \
+    ca-certificates \
+    build-essential \
+    postgresql-client \
+    curl \
+ && rm -rf /var/lib/apt/lists/*
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain $RUST_TARGET
+COPY . /tmp
+WORKDIR /tmp
