@@ -3,7 +3,7 @@
 pg-collectd provides an alternative and opinionated postgres collectd writer
 plugin. A quick rundown.
 
-- No dependencies (other than collectd). The [pure rust postgres
+- No dependencies (other than collectd). pg-collectd utilizes the (unofficial) [collectd rust plugin](https://github.com/nickbabcock/collectd-rust-plugin) for low cost binding to collectd's C API. The [pure rust postgres
   driver](https://github.com/sfackler/rust-postgres) is statically compiled
   into the plugin. No need to rely on libpq.
 - Simplified insertion as the data is expanded and denormalized, so instead of
