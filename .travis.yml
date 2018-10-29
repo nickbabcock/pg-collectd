@@ -1,0 +1,19 @@
+sudo: required
+
+services:
+- docker
+
+language: rust
+
+matrix:
+  fast_finish: true
+  include:
+    - env: UBUNTU_VERSION=14.04 COLLECTD_VERSION=5.4 RUST_TARGET=stable
+    - env: UBUNTU_VERSION=16.04 COLLECTD_VERSION=5.5 RUST_TARGET=stable
+    - env: UBUNTU_VERSION=18.04 COLLECTD_VERSION=5.7 RUST_TARGET=stable
+    - env: UBUNTU_VERSION=18.04 COLLECTD_VERSION=5.7 RUST_TARGET=beta
+    - env: UBUNTU_VERSION=18.04 COLLECTD_VERSION=5.7 RUST_TARGET=nightly
+
+script:
+  - docker-compose build --build-arg UBUNTU_VERSION=${UBUNTU_VERSION} --build-arg COLLECTD_VERSION=${COLLECTD_VERSION} --build-arg RUST_TARGET=$RUST_TARGET app
+  - docker-compose up --abort-on-container-exit --exit-code-from app
