@@ -1,7 +1,26 @@
 [package]
 name = "pg-collectd"
-version = "0.1.0"
+version = "0.1.0-pre"
 authors = ["Nick Babcock <nbabcock19@hotmail.com>"]
+description = "Provides an alternative and opinionated postgres collectd writer"
+repository = "https://github.com/nickbabcock/pg_collectd"
+readme = "README.md"
+license = "MIT"
+publish = false
+
+[package.metadata.deb]
+assets = [
+  ["target/release/libpg_collectd.so", "usr/lib/collectd/pg_collectd.so", "644"]
+]
+
+[package.metadata.deb.variants.collectd54]
+depends = "collectd (>= 5.4.0), collectd (<< 5.5.0)"
+
+[package.metadata.deb.variants.collectd55]
+depends = "collectd (>= 5.5.0), collectd (<< 5.6.0)"
+
+[package.metadata.deb.variants.collectd57]
+depends = "collectd (>= 5.6.0)"
 
 [dependencies]
 failure = "0.1.3"

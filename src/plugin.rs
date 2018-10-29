@@ -64,9 +64,10 @@ impl Plugin for PgCollectd {
         // We have a thread local csv buffer that we use to prep the payload. This should be a
         // win-win:
         //  - amortize allocations: allocations only needed on new threads or new list exceeds
-        //  previous capacity
+        //  previous capacity (should be extremely rare)
         //  - allows some concurrency as each payload can be prepped before needing to lock for a
         //  (potential) insert
+        //  - Since `Vec::new` does not allocate, it's cheap to take and set from a Cell
         thread_local!(static TEMP_BUF: Cell<Vec<u8>> = Cell::new(Vec::new()));
         let mut v = TEMP_BUF.with(|cell| cell.take());
         let len = list.values.len();
