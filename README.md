@@ -10,12 +10,12 @@ plugin. A quick rundown.
   writing a function that receives an array of values / identifiers, these are
   expanded so everything fits into a single table and columns contain single
   values (not arrays).
-- a 4x reduction in db cpu usage compared to using [collectd's default setup](https://github.com/collectd/collectd/blob/92c3b2ed5f8e49737e29b11244585960a3478494/contrib/postgresql/collectd_insert.sql) (a conservative estimate)
+- a 4x reduction in db cpu usage compared to using [collectd's default postgres writer + setup](https://github.com/collectd/collectd/blob/92c3b2ed5f8e49737e29b11244585960a3478494/contrib/postgresql/collectd_insert.sql) (a conservative estimate)
 
 Here are the downsides:
 
 - Not an officially supported collectd plugin
-- Not nearly as featureful
+- Not as feature rich (eg: currently no support TLS connections)
 - Only tested on a limited subset of collectds (though it may work on other
   versions depending on if collectd changed its C API)
 - Only distributed as debs or source (eg: no rpms / apt repository)
