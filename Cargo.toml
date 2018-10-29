@@ -9,6 +9,7 @@ license = "MIT"
 publish = false
 
 [package.metadata.deb]
+extended-description = "See project readme for extended description"
 assets = [
   ["target/release/libpg_collectd.so", "usr/lib/collectd/pg_collectd.so", "644"]
 ]

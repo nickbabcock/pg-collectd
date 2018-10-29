@@ -4,3 +4,4 @@ dev-version-ext = "pre"
 pre-release-commit-message = "Release {{version}}"
 pro-release-commit-message = "Bump to {{version}}"
 pre-release-replacements = [ {file="CHANGELOG.md", search="Unreleased - TBA", replace="{{version}} - {{date}}"}]
+pre-release-hook = ["./release.sh"]
