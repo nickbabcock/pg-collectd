@@ -29,7 +29,7 @@ serde = "1"
 serde_derive = "1"
 parking_lot = "0.6"
 csv = "1"
-collectd-plugin = "0.8.0"
+collectd-plugin = "0.8.1"
 
 [dependencies.chrono]
 version = "0.4"
