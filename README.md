@@ -19,7 +19,7 @@ rundown.
 Here are the downsides:
 
 - Not an officially supported collectd plugin
-- Not as feature rich (eg: currently no support TLS connections / does not support custom table names)
+- Not as feature rich (eg: currently no support for TLS connections / does not support custom table names)
 - Only tested on a limited subset of collectds (though it may work on other
   versions depending on if collectd changed its C API)
 - Only distributed as debs or source (eg: no rpms / apt repository)
