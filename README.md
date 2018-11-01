@@ -1,7 +1,8 @@
 # pg-collectd
 
 pg-collectd provides an alternative and opinionated postgres collectd writer
-plugin. A quick rundown.
+plugin, where flexibility is traded in for performance and ease of use. A quick
+rundown.
 
 - No dependencies (other than collectd). pg-collectd utilizes the (unofficial) [collectd rust plugin](https://github.com/nickbabcock/collectd-rust-plugin) for low cost binding to collectd's C API. The [pure rust postgres
   driver](https://github.com/sfackler/rust-postgres) is statically compiled
@@ -22,11 +23,12 @@ Here are the downsides:
 
 ## Compatibility
 
-This repo is tested on the following:
+This repo is tested on the following (though compatibility isn't limited to):
 
 - collectd 5.4 (Ubuntu 14.04)
 - collectd 5.5 (Ubuntu 16.04)
 - collectd 5.7 (Ubuntu 18.04)
+- collectd 5.8 (Ubuntu 18.10)
 
 Postgre 7.4 or later is required.
 
@@ -85,3 +87,14 @@ To take advantage of this, pg-collectd batches up a certain number of values
 that can `COPY` over to postgres. What's nice is that memory allocations are
 amortized such that over time, no memory is allocated for the in-memory CSV
 file, only the CPU time for formatting the CSV is needed.
+
+## Building
+
+To build the repo for collectd:
+
+```
+COLLECTD_VERSION=5.7 cargo build --release
+```
+
+The resulting `./target/release/libpg_collectd.so` should be copied (locally
+or remotely) to `/usr/lib/collectd/pg_collectd.so`
