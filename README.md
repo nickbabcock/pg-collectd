@@ -1,3 +1,6 @@
+[![Build
+Status](https://travis-ci.org/nickbabcock/pg-collectd.svg?branch=master)](https://travis-ci.org/nickbabcock/pg-collectd)
+
 # pg-collectd
 
 pg-collectd provides an alternative and opinionated postgres collectd writer
@@ -28,13 +31,19 @@ This repo is tested on the following (though compatibility isn't limited to):
 - collectd 5.4 (Ubuntu 14.04)
 - collectd 5.5 (Ubuntu 16.04)
 - collectd 5.7 (Ubuntu 18.04)
-- collectd 5.8 (Ubuntu 18.10)
+- collectd 5.8 (Ubuntu 18.10) (can use package compiled for collectd 5.7)
 
-Postgre 7.4 or later is required.
+Postgres 7.4 or later is required.
 
-## Quick start
+## Installation
 
-Below is a sample collectd configuration
+If you're on a debian based linux distro (eg: Ubuntu) there is a fast pass:
+
+- Download the appropriate package from the [latest
+  release](https://github.com/nickbabcock/pg-collectd/releases/latest) (see
+  the compatibility list shown earlier)
+- Install with `dpkg -i pg-collectd-*.deb`
+- Edit collectd configuration (eg: `/etc/collectd/collectd.conf`)
 
 ```
 LoadPlugin pg_collectd
@@ -44,6 +53,12 @@ LoadPlugin pg_collectd
     StoreRates true
 </Plugin>
 ```
+
+- Restart collectd
+
+Not using Ubuntu / Debian? No problem, [build from source](#building).
+
+## Configuration Option
 
 - BatchSize: number of values to batch (eg: rows in the csv) before copying them to the database. Default is 100, which is extremely conservative. Test what is appropriate for you, but 500 to 1000 works well for me. Note that it is possible for the number of rows inserted to not be exactly equal to batch size, as `NaN` rates are not stored and some metrics given to write contain more than one value.
 - Connection (see [postgres connection uri documentation](https://www.postgresql.org/docs/10/static/libpq-connect.html#id-1.7.3.8.3.6))
@@ -90,7 +105,8 @@ file, only the CPU time for formatting the CSV is needed.
 
 ## Building
 
-To build the repo for collectd:
+To build the repo for collectd, ensure you have [Rust
+installed](https://rustup.rs/)
 
 ```
 COLLECTD_VERSION=5.7 cargo build --release
