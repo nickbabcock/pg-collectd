@@ -19,7 +19,7 @@ rundown.
 Here are the downsides:
 
 - Not an officially supported collectd plugin
-- Not as feature rich (eg: currently no support TLS connections)
+- Not as feature rich (eg: currently no support TLS connections / does not support custom table names)
 - Only tested on a limited subset of collectds (though it may work on other
   versions depending on if collectd changed its C API)
 - Only distributed as debs or source (eg: no rpms / apt repository)
@@ -37,7 +37,28 @@ Postgres 7.4 or later is required.
 
 ## Installation
 
-If you're on a debian based linux distro (eg: Ubuntu) there is a fast pass:
+If you're on a debian based linux distro (eg: Ubuntu) there is a fast pass,
+but first we must setup the database with the following schema:
+
+```sql
+CREATE TABLE IF NOT EXISTS collectd_metrics (
+   time TIMESTAMPTZ NOT NULL,
+   plugin TEXT,
+   plugin_instance TEXT,
+   type_instance TEXT,
+   type TEXT,
+   host TEXT,
+   metric TEXT,
+   value DOUBLE PRECISION
+);
+```
+
+- Create a user that only has `INSERT` permissions on `collectd_metrics`:
+
+```sql
+CREATE USER collectd WITH PASSWORD 'xxx';
+GRANT INSERT ON collectd_metrics TO collectd;
+```
 
 - Download the appropriate package from the [latest
   release](https://github.com/nickbabcock/pg-collectd/releases/latest) (see
@@ -63,27 +84,6 @@ Not using Ubuntu / Debian? No problem, [build from source](#building).
 - BatchSize: number of values to batch (eg: rows in the csv) before copying them to the database. Default is 100, which is extremely conservative. Test what is appropriate for you, but 500 to 1000 works well for me. Note that it is possible for the number of rows inserted to not be exactly equal to batch size, as `NaN` rates are not stored and some metrics given to write contain more than one value.
 - Connection (see [postgres connection uri documentation](https://www.postgresql.org/docs/10/static/libpq-connect.html#id-1.7.3.8.3.6))
 - StoreRates: Controls whether DERIVE and COUNTER metrics are converted to a rate before sending. Default is true.
-
-## Schema
-
-Given how young and opinionated this plugin is, there is not flexibility in how the structure of the data.
-
-The only officially supported schema (the one that is tested against) is the one below:
-
-```sql
-CREATE TABLE IF NOT EXISTS collectd_metrics (
-   time TIMESTAMPTZ NOT NULL,
-   plugin TEXT,
-   plugin_instance TEXT,
-   type_instance TEXT,
-   type TEXT,
-   host TEXT,
-   metric TEXT,
-   value DOUBLE PRECISION
-);
-```
-
-It is recommended that the user created for this plugin be only given `INSERT` permissions on `collectd_metrics`
 
 ## Performance Secret Sauce
 
