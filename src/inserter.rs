@@ -61,7 +61,7 @@ impl PgInserter {
     pub fn send_data(&mut self, data: &[u8], values: usize) -> Result<(), postgres::Error> {
         self.buffer.extend_from_slice(&data[..]);
         self.batched += values;
-        if self.batched > self.batch_limit {
+        if self.batched >= self.batch_limit {
             self.flush()
         } else {
             Ok(())
