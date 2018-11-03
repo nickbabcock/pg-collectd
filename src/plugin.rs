@@ -4,11 +4,11 @@ use collectd_plugin::{
     self, CollectdLoggerBuilder, ConfigItem, Plugin, PluginCapabilities, PluginManager,
     PluginRegistration, Value, ValueList,
 };
+use config::PgCollectdConfig;
 use csv;
 use failure::Error;
 use failure::ResultExt;
 use inserter::PgInserter;
-use config::PgCollectdConfig;
 use log::LevelFilter;
 use parking_lot::Mutex;
 use std::cell::Cell;

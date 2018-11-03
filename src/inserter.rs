@@ -68,3 +68,48 @@ impl PgInserter {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::PgInserter;
+    use postgres::{Connection, TlsMode};
+
+    const CONNECTION: &str = "postgresql://collectd:hellocollectd@timescale/timescale_built2";
+
+    fn count_rows() -> i64 {
+        let query = Connection::connect(
+            "postgresql://postgres:my_rust_test@timescale/timescale_built2",
+            TlsMode::None,
+        ).unwrap()
+        .query("SELECT COUNT(*) FROM collectd_metrics", &[])
+        .unwrap();
+        let record = query.get(0);
+        record.get(0)
+    }
+
+    #[test]
+    fn insert_values() {
+        let mut ins = PgInserter::new(String::from(CONNECTION), 10);
+
+        // Simulate ten rows inserting to exceed batch
+        ins.send_data(
+            b"2004-10-19 10:23:54+02,plugin,plugin_instance,type_instance,type,host,metric,10.0\n",
+            10,
+        ).unwrap();
+        assert_eq!(count_rows(), 1);
+
+        // Simulate adding one row
+        ins.send_data(
+            b"2004-10-19 10:23:55+02,plugin,plugin_instance,type_instance,type,host,metric,10.0\n",
+            1,
+        ).unwrap();
+        assert_eq!(count_rows(), 1);
+
+        // Simulate adding nine more to cause copy insert
+        ins.send_data(
+            b"2004-10-19 10:23:56+02,plugin,plugin_instance,type_instance,type,host,metric,10.0\n",
+            9,
+        ).unwrap();
+        assert_eq!(count_rows(), 3);
+    }
+}

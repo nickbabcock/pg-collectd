@@ -5,6 +5,7 @@ set -euo pipefail
 source $HOME/.cargo/env
 
 cargo build
+cargo test
 
 cp target/debug/libpg_collectd.so /usr/lib/collectd/pg_collectd.so
 
