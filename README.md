@@ -72,6 +72,7 @@ LoadPlugin pg_collectd
     BatchSize 1000
     Connection "postgresql://<user>:<password>@<host>:<port>/<db>"
     StoreRates true
+    LogTimings INFO
 </Plugin>
 ```
 
@@ -84,6 +85,7 @@ Not using Ubuntu / Debian? No problem, [build from source](#building).
 - BatchSize: number of values to batch (eg: rows in the csv) before copying them to the database. Default is 100, which is extremely conservative. Test what is appropriate for you, but 500 to 1000 works well for me. Note that it is possible for the number of rows inserted to not be exactly equal to batch size, as `NaN` rates are not stored and some metrics given to write contain more than one value.
 - Connection (see [postgres connection uri documentation](https://www.postgresql.org/docs/10/static/libpq-connect.html#id-1.7.3.8.3.6))
 - StoreRates: Controls whether DERIVE and COUNTER metrics are converted to a rate before sending. Default is true.
+- LogTimings: The level at which to log performance timings. The default is `DEBUG` to cut down on potential log spam, though there is no problem setting it to `INFO` (or `WARN` / `ERROR` for that matter), as only a single line is logged per batched insert.
 
 ## Performance Secret Sauce
 

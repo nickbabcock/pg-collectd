@@ -1,4 +1,6 @@
-#[derive(Deserialize, Debug, Default)]
+use log::Level;
+
+#[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct PgCollectdConfig {
     #[serde(rename = "Connection")]
@@ -9,6 +11,9 @@ pub struct PgCollectdConfig {
 
     #[serde(default = "store_rates_default", rename = "StoreRates")]
     pub store_rates: bool,
+
+    #[serde(default = "log_timings_default", rename = "LogTimings")]
+    pub log_timings: Level,
 }
 
 fn batch_size_default() -> usize {
@@ -17,4 +22,8 @@ fn batch_size_default() -> usize {
 
 fn store_rates_default() -> bool {
     true
+}
+
+fn log_timings_default() -> Level {
+    Level::Debug
 }

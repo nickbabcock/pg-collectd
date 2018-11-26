@@ -1,22 +1,26 @@
 use chrono::Duration;
+use log::Level;
 use postgres::{self, Connection, TlsMode};
 use std::time::Instant;
 
-#[derive(Default)]
 pub struct PgInserter {
     uri: String,
     connection: Option<Connection>,
+    log_timings: Level,
     buffer: Vec<u8>,
     batched: usize,
     batch_limit: usize,
 }
 
 impl PgInserter {
-    pub fn new(uri: String, batch_limit: usize) -> Self {
+    pub fn new(uri: String, batch_limit: usize, log_timings: Level) -> Self {
         PgInserter {
             uri,
             batch_limit,
-            ..Default::default()
+            log_timings,
+            connection: None,
+            buffer: Vec::new(),
+            batched: 0,
         }
     }
 
@@ -38,7 +42,8 @@ impl PgInserter {
         };
 
         if let Ok(rows) = res {
-            info!(
+            log!(
+                self.log_timings,
                 "inserted {} rows from {} values from {} bytes (capacity: {}) in {}ms",
                 rows,
                 self.batched,

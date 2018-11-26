@@ -48,7 +48,11 @@ impl PluginManager for PgCollectd {
 
         let plugin = PgCollectd {
             store_rates: config.store_rates,
-            inserter: Mutex::new(PgInserter::new(config.connection, config.batch_size)),
+            inserter: Mutex::new(PgInserter::new(
+                config.connection,
+                config.batch_size,
+                config.log_timings,
+            )),
         };
 
         Ok(PluginRegistration::Single(Box::new(plugin)))
