@@ -1,6 +1,6 @@
 [package]
 name = "pg-collectd"
-version = "0.1.1"
+version = "0.1.2-pre"
 authors = ["Nick Babcock <nbabcock19@hotmail.com>"]
 description = "Provides an alternative and opinionated postgres collectd writer"
 repository = "https://github.com/nickbabcock/pg_collectd"
