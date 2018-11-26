@@ -94,7 +94,7 @@ mod test {
 
     #[test]
     fn insert_values() {
-        let mut ins = PgInserter::new(String::from(CONNECTION), 10);
+        let mut ins = PgInserter::new(String::from(CONNECTION), 10, log::Level::Info);
 
         // Simulate ten rows inserting to exceed batch
         ins.send_data(
