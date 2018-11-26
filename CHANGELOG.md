@@ -1,4 +1,4 @@
-# Unreleased - TBA
+# 0.1.1 - 2018-11-26
 
 * Update to collectd-plugin 0.8.4 from 0.8.1, which fixes segfaults on plugin flush and shutdown
 * Add: configurable log level for timing data using the LogTimings configuration option (an example of a log timing: "inserted 1000 rows from 1000 values from 86403 bytes (capacity: 157696) in 54ms")
