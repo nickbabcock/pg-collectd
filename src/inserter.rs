@@ -3,6 +3,15 @@ use log::Level;
 use postgres::{self, Connection, TlsMode};
 use std::time::Instant;
 
+#[derive(Debug, Fail)]
+pub enum PgError {
+    #[fail(display = "waiting until connect backoff to try again")]
+    ConnectBackoff,
+
+    #[fail(display = "{}", _0)]
+    Postgres(#[cause] postgres::Error),
+}
+
 pub struct PgInserter {
     uri: String,
     connection: Option<Connection>,
@@ -10,6 +19,7 @@ pub struct PgInserter {
     buffer: Vec<u8>,
     batched: usize,
     batch_limit: usize,
+    last_connect: Option<Instant>,
 }
 
 impl PgInserter {
@@ -21,6 +31,7 @@ impl PgInserter {
             connection: None,
             buffer: Vec::new(),
             batched: 0,
+            last_connect: None,
         }
     }
 
@@ -35,6 +46,8 @@ impl PgInserter {
             PgInserter::postgres_insert(conn, &self.buffer[..])
         } else {
             info!("initializing new connection");
+            self.last_connect = Some(start);
+
             let c = Connection::connect(self.uri.as_str(), TlsMode::None)?;
             let res = PgInserter::postgres_insert(&c, &self.buffer[..])?;
             self.connection = Some(c);
@@ -63,11 +76,21 @@ impl PgInserter {
         res.map(|_| ())
     }
 
-    pub fn send_data(&mut self, data: &[u8], values: usize) -> Result<(), postgres::Error> {
+    pub fn send_data(&mut self, data: &[u8], values: usize) -> Result<(), PgError> {
         self.buffer.extend_from_slice(&data[..]);
         self.batched += values;
         if self.batched >= self.batch_limit {
-            self.flush()
+            // If we are not connected and we've recently allocated a connection then we should not
+            // even try and insert as spamming connection attempts helps no one. The impetus for
+            // this is taken from the write_graphite plugin
+            let too_soon = self.last_connect.map(|x| Instant::now().duration_since(x).as_secs() == 0);
+            if self.connection.is_none() && too_soon.unwrap_or(false) {
+                self.batched = 0;
+                self.buffer.clear();
+                Err(PgError::ConnectBackoff)
+            } else {
+                self.flush().map_err(PgError::Postgres)
+            }
         } else {
             Ok(())
         }
