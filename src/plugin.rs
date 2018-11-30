@@ -108,14 +108,17 @@ impl Plugin for PgCollectd {
         }
 
         let mut inserter = self.inserter.lock();
-        inserter
+        let result = inserter
             .send_data(&v[..], len)
-            .context("unable to insert into postgres")?;
+            .context("unable to insert into postgres");
 
+        // Even if we fail to insert into postgres, we should still clear out our intermediate
+        // buffer so that if the db is down for a long time, it doesn't affect memory usage
+        // negatively. We also want to keep the same buffer across errors as it contains
+        // our amoritized allocations.
         v.clear();
         TEMP_BUF.with(|cell| cell.set(v));
-
-        Ok(())
+        Ok(result?)
     }
 
     fn flush(&self, _timeout: Option<Duration>, _identifier: Option<&str>) -> Result<(), Error> {
