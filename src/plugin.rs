@@ -6,12 +6,13 @@ use collectd_plugin::{
 };
 use config::PgCollectdConfig;
 use csv;
-use failure::Error;
-use failure::ResultExt;
+use failure::{ResultExt, Fail};
 use inserter::PgInserter;
 use log::LevelFilter;
 use parking_lot::Mutex;
 use std::cell::Cell;
+use std::error;
+use std::panic::AssertUnwindSafe;
 
 #[derive(Serialize, Debug)]
 struct Submission<'a> {
@@ -26,7 +27,7 @@ struct Submission<'a> {
 }
 
 pub struct PgCollectd {
-    inserter: Mutex<PgInserter>,
+    inserter: AssertUnwindSafe<Mutex<PgInserter>>,
     store_rates: bool,
 }
 
@@ -35,7 +36,7 @@ impl PluginManager for PgCollectd {
         "pg_collectd"
     }
 
-    fn plugins(config: Option<&[ConfigItem]>) -> Result<PluginRegistration, Error> {
+    fn plugins(config: Option<&[ConfigItem]>) -> Result<PluginRegistration, Box<error::Error>> {
         // hook rust logging into collectd's logging
         CollectdLoggerBuilder::new()
             .prefix_plugin::<Self>()
@@ -48,11 +49,11 @@ impl PluginManager for PgCollectd {
 
         let plugin = PgCollectd {
             store_rates: config.store_rates,
-            inserter: Mutex::new(PgInserter::new(
+            inserter: AssertUnwindSafe(Mutex::new(PgInserter::new(
                 config.connection,
                 config.batch_size,
                 config.log_timings,
-            )),
+            ))),
         };
 
         Ok(PluginRegistration::Single(Box::new(plugin)))
@@ -64,7 +65,7 @@ impl Plugin for PgCollectd {
         PluginCapabilities::WRITE | PluginCapabilities::FLUSH
     }
 
-    fn write_values(&self, list: ValueList) -> Result<(), Error> {
+    fn write_values(&self, list: ValueList) -> Result<(), Box<error::Error>> {
         // We have a thread local csv buffer that we use to prep the payload. This should be a
         // win-win:
         //  - amortize allocations: allocations only needed on new threads or new list exceeds
@@ -118,12 +119,12 @@ impl Plugin for PgCollectd {
         // our amoritized allocations.
         v.clear();
         TEMP_BUF.with(|cell| cell.set(v));
-        Ok(result?)
+        Ok(result.map_err(|e| e.compat())?)
     }
 
-    fn flush(&self, _timeout: Option<Duration>, _identifier: Option<&str>) -> Result<(), Error> {
+    fn flush(&self, _timeout: Option<Duration>, _identifier: Option<&str>) -> Result<(), Box<error::Error>> {
         let mut inserter = self.inserter.lock();
-        inserter.flush().context("unable to flush to postgres")?;
+        inserter.flush().context("unable to flush to postgres").map_err(|e| e.compat())?;
         Ok(())
     }
 }
