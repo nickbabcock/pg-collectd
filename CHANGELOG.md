@@ -1,4 +1,4 @@
-# Unreleased - TBA
+# 0.1.2 - 2018-12-16
 
 * Reduce memory allocations necessary after a failure inserting into the database
 * If there was a db failure and we're trying to insert again within the same second -- give the db a break and discard those values
