@@ -1,3 +1,9 @@
+# Unreleased - TBA
+
+* Reduce memory allocations necessary after a failure inserting into the database
+* If there was a db failure and we're trying to insert again within the same second -- give the db a break and discard those values
+* Bumping the internal collectd plugin to 0.9 from 0.8.4 improves resiliancy that unexpected panics won't bring collectd down
+
 # 0.1.1 - 2018-11-26
 
 * Update to collectd-plugin 0.8.4 from 0.8.1, which fixes segfaults on plugin flush and shutdown
