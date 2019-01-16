@@ -10,7 +10,6 @@ if [ -z "$DEBIAN_VARIANT" ]; then
     docker-compose up --abort-on-container-exit --exit-code-from app
 else
     cargo build --all
-    cargo test --all
     cargo install cargo-deb
     cargo deb --variant $DEBIAN_VARIANT
 fi
