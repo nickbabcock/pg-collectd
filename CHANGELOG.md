@@ -1,3 +1,13 @@
+# 0.1.3 - 2019-01-16
+
+Extremely minor release -- basically ensuring that the automated CI deployments worked
+
+Internal dependency updates:
+ - Update csv from 1.0.2 to 1.0.5
+ - Update serde / serde_derive from 1.0.82 to 1.0.84
+ - Update parking_lot from 0.7.0 to 0.7.1
+ - Update failure from 0.1.3 to 0.1.5
+
 # 0.1.2 - 2018-12-16
 
 * Reduce memory allocations necessary after a failure inserting into the database
