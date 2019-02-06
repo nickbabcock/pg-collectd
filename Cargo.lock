@@ -456,7 +456,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "pg-collectd"
-version = "0.1.4-pre"
+version = "0.1.4"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "collectd-plugin 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
