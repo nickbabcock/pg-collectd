@@ -1,3 +1,10 @@
+# 0.1.4 - 2019-02-06
+
+- Bump collectd-plugin from 0.9.0 to 0.9.1
+  - Compile on non-x86 platforms
+  - Add `COLLECTD_PATH` environment variable for detecting collectd version from collectd's source directory (most useful with the `bindgen` feature).
+  - Output panic info into collectd logs
+
 # 0.1.3 - 2019-01-16
 
 Extremely minor release -- basically ensuring that the automated CI deployments worked
