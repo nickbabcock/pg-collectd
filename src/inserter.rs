@@ -83,7 +83,9 @@ impl PgInserter {
             // If we are not connected and we've recently allocated a connection then we should not
             // even try and insert as spamming connection attempts helps no one. The impetus for
             // this is taken from the write_graphite plugin
-            let too_soon = self.last_connect.map(|x| Instant::now().duration_since(x).as_secs() == 0);
+            let too_soon = self
+                .last_connect
+                .map(|x| Instant::now().duration_since(x).as_secs() == 0);
             if self.connection.is_none() && too_soon.unwrap_or(false) {
                 self.batched = 0;
                 self.buffer.clear();
@@ -108,7 +110,8 @@ mod test {
         let query = Connection::connect(
             "postgresql://postgres:my_rust_test@timescale/timescale_built2",
             TlsMode::None,
-        ).unwrap()
+        )
+        .unwrap()
         .query("SELECT COUNT(*) FROM collectd_metrics", &[])
         .unwrap();
         let record = query.get(0);
@@ -123,21 +126,24 @@ mod test {
         ins.send_data(
             b"2004-10-19 10:23:54+02,plugin,plugin_instance,type_instance,type,host,metric,10.0\n",
             10,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(count_rows(), 1);
 
         // Simulate adding one row
         ins.send_data(
             b"2004-10-19 10:23:55+02,plugin,plugin_instance,type_instance,type,host,metric,10.0\n",
             1,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(count_rows(), 1);
 
         // Simulate adding nine more to cause copy insert
         ins.send_data(
             b"2004-10-19 10:23:56+02,plugin,plugin_instance,type_instance,type,host,metric,10.0\n",
             9,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(count_rows(), 3);
     }
 }

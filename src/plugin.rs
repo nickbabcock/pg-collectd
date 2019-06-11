@@ -6,14 +6,14 @@ use collectd_plugin::{
 };
 use config::PgCollectdConfig;
 use csv;
-use failure::{ResultExt, Fail};
+use failure::{Fail, ResultExt};
 use inserter::PgInserter;
 use log::LevelFilter;
 use parking_lot::Mutex;
+use serde::Serialize;
 use std::cell::Cell;
 use std::error;
 use std::panic::AssertUnwindSafe;
-use serde::Serialize;
 
 #[derive(Serialize, Debug)]
 struct Submission<'a> {
@@ -123,9 +123,16 @@ impl Plugin for PgCollectd {
         Ok(result.map_err(|e| e.compat())?)
     }
 
-    fn flush(&self, _timeout: Option<Duration>, _identifier: Option<&str>) -> Result<(), Box<error::Error>> {
+    fn flush(
+        &self,
+        _timeout: Option<Duration>,
+        _identifier: Option<&str>,
+    ) -> Result<(), Box<error::Error>> {
         let mut inserter = self.inserter.lock();
-        inserter.flush().context("unable to flush to postgres").map_err(|e| e.compat())?;
+        inserter
+            .flush()
+            .context("unable to flush to postgres")
+            .map_err(|e| e.compat())?;
         Ok(())
     }
 }
