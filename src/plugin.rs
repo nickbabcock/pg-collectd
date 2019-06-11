@@ -13,6 +13,7 @@ use parking_lot::Mutex;
 use std::cell::Cell;
 use std::error;
 use std::panic::AssertUnwindSafe;
+use serde::Serialize;
 
 #[derive(Serialize, Debug)]
 struct Submission<'a> {

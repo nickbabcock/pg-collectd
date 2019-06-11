@@ -1,4 +1,5 @@
 use log::Level;
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
