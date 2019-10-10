@@ -1,5 +1,5 @@
 use chrono::Duration;
-use log::Level;
+use log::{info, log, Level};
 use postgres::{self, Connection, TlsMode};
 use std::time::Instant;
 use std::fmt;

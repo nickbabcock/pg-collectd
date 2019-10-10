@@ -7,7 +7,7 @@ use collectd_plugin::{
 use crate::config::PgCollectdConfig;
 use csv;
 use crate::inserter::PgInserter;
-use log::LevelFilter;
+use log::{warn, LevelFilter};
 use parking_lot::Mutex;
 use serde::Serialize;
 use std::cell::Cell;
