@@ -2,14 +2,31 @@ use chrono::Duration;
 use log::Level;
 use postgres::{self, Connection, TlsMode};
 use std::time::Instant;
+use std::fmt;
+use std::error::Error;
 
-#[derive(Debug, Fail)]
+#[derive(Debug)]
 pub enum PgError {
-    #[fail(display = "waiting until connect backoff to try again")]
     ConnectBackoff,
+    Postgres(postgres::Error),
+}
 
-    #[fail(display = "{}", _0)]
-    Postgres(#[cause] postgres::Error),
+impl fmt::Display for PgError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PgError::ConnectBackoff => write!(f, "waiting until connect backoff to try again"),
+            PgError::Postgres(ref e) => write!(f, "postgres error: {}", e),
+        }
+    }
+}
+
+impl Error for PgError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            PgError::Postgres(ref e) => Some(e),
+            _ => None,
+        }
+    }
 }
 
 pub struct PgInserter {

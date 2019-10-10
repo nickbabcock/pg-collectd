@@ -1,7 +1,5 @@
 #[macro_use]
 extern crate collectd_plugin;
-#[macro_use]
-extern crate failure;
 extern crate postgres;
 #[macro_use]
 extern crate log;
