@@ -36,7 +36,7 @@ impl PluginManager for PgCollectd {
         "pg_collectd"
     }
 
-    fn plugins(config: Option<&[ConfigItem]>) -> Result<PluginRegistration, Box<dyn error::Error>> {
+    fn plugins(config: Option<&[ConfigItem<'_>]>) -> Result<PluginRegistration, Box<dyn error::Error>> {
         // hook rust logging into collectd's logging
         CollectdLoggerBuilder::new()
             .prefix_plugin::<Self>()
@@ -65,7 +65,7 @@ impl Plugin for PgCollectd {
         PluginCapabilities::WRITE | PluginCapabilities::FLUSH
     }
 
-    fn write_values(&self, list: ValueList) -> Result<(), Box<dyn error::Error>> {
+    fn write_values(&self, list: ValueList<'_>) -> Result<(), Box<dyn error::Error>> {
         // We have a thread local csv buffer that we use to prep the payload. This should be a
         // win-win:
         //  - amortize allocations: allocations only needed on new threads or new list exceeds

@@ -12,7 +12,7 @@ pub enum PgError {
 }
 
 impl fmt::Display for PgError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PgError::ConnectBackoff => write!(f, "waiting until connect backoff to try again"),
             PgError::Postgres(ref e) => write!(f, "postgres error: {}", e),
