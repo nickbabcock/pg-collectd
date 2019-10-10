@@ -6,7 +6,6 @@ use collectd_plugin::{
 };
 use config::PgCollectdConfig;
 use csv;
-use failure::{Fail, ResultExt};
 use inserter::PgInserter;
 use log::LevelFilter;
 use parking_lot::Mutex;
@@ -110,9 +109,7 @@ impl Plugin for PgCollectd {
         }
 
         let mut inserter = self.inserter.lock();
-        let result = inserter
-            .send_data(&v[..], len)
-            .context("unable to insert into postgres");
+        let result = inserter.send_data(&v[..], len);
 
         // Even if we fail to insert into postgres, we should still clear out our intermediate
         // buffer so that if the db is down for a long time, it doesn't affect memory usage
@@ -120,7 +117,7 @@ impl Plugin for PgCollectd {
         // our amoritized allocations.
         v.clear();
         TEMP_BUF.with(|cell| cell.set(v));
-        Ok(result.map_err(|e| e.compat())?)
+        Ok(result?)
     }
 
     fn flush(
@@ -129,10 +126,7 @@ impl Plugin for PgCollectd {
         _identifier: Option<&str>,
     ) -> Result<(), Box<error::Error>> {
         let mut inserter = self.inserter.lock();
-        inserter
-            .flush()
-            .context("unable to flush to postgres")
-            .map_err(|e| e.compat())?;
+        inserter.flush()?;
         Ok(())
     }
 }
