@@ -1,12 +1,12 @@
+use crate::config::PgCollectdConfig;
+use crate::inserter::PgInserter;
 use chrono::prelude::*;
 use chrono::Duration;
 use collectd_plugin::{
     self, CollectdLoggerBuilder, ConfigItem, Plugin, PluginCapabilities, PluginManager,
     PluginRegistration, Value, ValueList,
 };
-use crate::config::PgCollectdConfig;
 use csv;
-use crate::inserter::PgInserter;
 use log::{warn, LevelFilter};
 use parking_lot::Mutex;
 use serde::Serialize;
@@ -36,7 +36,9 @@ impl PluginManager for PgCollectd {
         "pg_collectd"
     }
 
-    fn plugins(config: Option<&[ConfigItem<'_>]>) -> Result<PluginRegistration, Box<dyn error::Error>> {
+    fn plugins(
+        config: Option<&[ConfigItem<'_>]>,
+    ) -> Result<PluginRegistration, Box<dyn error::Error>> {
         // hook rust logging into collectd's logging
         CollectdLoggerBuilder::new()
             .prefix_plugin::<Self>()

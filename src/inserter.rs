@@ -1,9 +1,9 @@
 use chrono::Duration;
 use log::{info, log, Level};
 use postgres::{self, Connection, TlsMode};
-use std::time::Instant;
-use std::fmt;
 use std::error::Error;
+use std::fmt;
+use std::time::Instant;
 
 #[derive(Debug)]
 pub enum PgError {
