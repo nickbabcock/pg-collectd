@@ -4,9 +4,9 @@ use collectd_plugin::{
     self, CollectdLoggerBuilder, ConfigItem, Plugin, PluginCapabilities, PluginManager,
     PluginRegistration, Value, ValueList,
 };
-use config::PgCollectdConfig;
+use crate::config::PgCollectdConfig;
 use csv;
-use inserter::PgInserter;
+use crate::inserter::PgInserter;
 use log::LevelFilter;
 use parking_lot::Mutex;
 use serde::Serialize;
@@ -36,7 +36,7 @@ impl PluginManager for PgCollectd {
         "pg_collectd"
     }
 
-    fn plugins(config: Option<&[ConfigItem]>) -> Result<PluginRegistration, Box<error::Error>> {
+    fn plugins(config: Option<&[ConfigItem]>) -> Result<PluginRegistration, Box<dyn error::Error>> {
         // hook rust logging into collectd's logging
         CollectdLoggerBuilder::new()
             .prefix_plugin::<Self>()
@@ -65,7 +65,7 @@ impl Plugin for PgCollectd {
         PluginCapabilities::WRITE | PluginCapabilities::FLUSH
     }
 
-    fn write_values(&self, list: ValueList) -> Result<(), Box<error::Error>> {
+    fn write_values(&self, list: ValueList) -> Result<(), Box<dyn error::Error>> {
         // We have a thread local csv buffer that we use to prep the payload. This should be a
         // win-win:
         //  - amortize allocations: allocations only needed on new threads or new list exceeds
@@ -124,7 +124,7 @@ impl Plugin for PgCollectd {
         &self,
         _timeout: Option<Duration>,
         _identifier: Option<&str>,
-    ) -> Result<(), Box<error::Error>> {
+    ) -> Result<(), Box<dyn error::Error>> {
         let mut inserter = self.inserter.lock();
         inserter.flush()?;
         Ok(())
