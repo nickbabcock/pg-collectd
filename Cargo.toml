@@ -5,6 +5,7 @@ authors = ["Nick Babcock <nbabcock19@hotmail.com>"]
 description = "Provides an alternative and opinionated postgres collectd writer"
 repository = "https://github.com/nickbabcock/pg_collectd"
 readme = "README.md"
+edition = "2018"
 license = "MIT"
 publish = false
 
