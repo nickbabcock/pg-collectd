@@ -1,3 +1,7 @@
+# 0.1.5 - 2019-10-10
+
+* Maintenance release that bumped internal dependencies
+
 # 0.1.4 - 2019-02-06
 
 - Bump collectd-plugin from 0.9.0 to 0.9.1
