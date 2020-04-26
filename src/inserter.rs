@@ -1,37 +1,13 @@
+use crate::errors::PgError;
 use chrono::Duration;
 use log::{info, log, Level};
-use postgres::{self, Connection, TlsMode};
-use std::error::Error;
-use std::fmt;
+use postgres::{self, Client, NoTls};
+use std::io::Write;
 use std::time::Instant;
-
-#[derive(Debug)]
-pub enum PgError {
-    ConnectBackoff,
-    Postgres(postgres::Error),
-}
-
-impl fmt::Display for PgError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PgError::ConnectBackoff => write!(f, "waiting until connect backoff to try again"),
-            PgError::Postgres(ref e) => write!(f, "postgres error: {}", e),
-        }
-    }
-}
-
-impl Error for PgError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            PgError::Postgres(ref e) => Some(e),
-            _ => None,
-        }
-    }
-}
 
 pub struct PgInserter {
     uri: String,
-    connection: Option<Connection>,
+    client: Option<Client>,
     log_timings: Level,
     buffer: Vec<u8>,
     batched: usize,
@@ -45,29 +21,31 @@ impl PgInserter {
             uri,
             batch_limit,
             log_timings,
-            connection: None,
+            client: None,
             buffer: Vec::new(),
             batched: 0,
             last_connect: None,
         }
     }
 
-    fn postgres_insert(conn: &Connection, mut data: &[u8]) -> Result<u64, postgres::Error> {
-        let stmt = conn.prepare_cached("COPY collectd_metrics FROM STDIN WITH (FORMAT CSV)")?;
-        stmt.copy_in(&[], &mut data)
+    fn postgres_insert(client: &mut Client, data: &[u8]) -> Result<u64, PgError> {
+        let mut writer = client.copy_in("COPY collectd_metrics FROM STDIN WITH (FORMAT CSV)")?;
+        writer.write_all(data)?;
+        let rows = writer.finish()?;
+        Ok(rows)
     }
 
-    pub fn flush(&mut self) -> Result<(), postgres::Error> {
+    pub fn flush(&mut self) -> Result<(), PgError> {
         let start = Instant::now();
-        let res = if let Some(ref conn) = self.connection {
-            PgInserter::postgres_insert(conn, &self.buffer[..])
+        let res = if let Some(client) = self.client.as_mut() {
+            PgInserter::postgres_insert(client, &self.buffer[..])
         } else {
             info!("initializing new connection");
             self.last_connect = Some(start);
 
-            let c = Connection::connect(self.uri.as_str(), TlsMode::None)?;
-            let res = PgInserter::postgres_insert(&c, &self.buffer[..])?;
-            self.connection = Some(c);
+            let mut c = Client::connect(self.uri.as_str(), NoTls)?;
+            let res = PgInserter::postgres_insert(&mut c, &self.buffer[..])?;
+            self.client = Some(c);
             Ok(res)
         };
 
@@ -85,7 +63,7 @@ impl PgInserter {
                     .unwrap_or_else(|_| String::from("<error>"))
             );
         } else {
-            self.connection = None
+            self.client = None
         }
 
         self.batched = 0;
@@ -103,12 +81,12 @@ impl PgInserter {
             let too_soon = self
                 .last_connect
                 .map(|x| Instant::now().duration_since(x).as_secs() == 0);
-            if self.connection.is_none() && too_soon.unwrap_or(false) {
+            if self.client.is_none() && too_soon.unwrap_or(false) {
                 self.batched = 0;
                 self.buffer.clear();
                 Err(PgError::ConnectBackoff)
             } else {
-                self.flush().map_err(PgError::Postgres)
+                self.flush()
             }
         } else {
             Ok(())
@@ -119,20 +97,19 @@ impl PgInserter {
 #[cfg(test)]
 mod test {
     use super::PgInserter;
-    use postgres::{Connection, TlsMode};
+    use postgres::{Client, NoTls};
 
     const CONNECTION: &str = "postgresql://collectd:hellocollectd@timescale/timescale_built2";
 
     fn count_rows() -> i64 {
-        let query = Connection::connect(
+        Client::connect(
             "postgresql://postgres:my_rust_test@timescale/timescale_built2",
-            TlsMode::None,
+            NoTls,
         )
         .unwrap()
-        .query("SELECT COUNT(*) FROM collectd_metrics", &[])
-        .unwrap();
-        let record = query.get(0);
-        record.get(0)
+        .query_one("SELECT COUNT(*) FROM collectd_metrics", &[])
+        .unwrap()
+        .get(0)
     }
 
     #[test]

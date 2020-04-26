@@ -6,7 +6,6 @@ use collectd_plugin::{
     self, CollectdLoggerBuilder, ConfigItem, Plugin, PluginCapabilities, PluginManager,
     PluginRegistration, Value, ValueList,
 };
-use csv;
 use log::{warn, LevelFilter};
 use parking_lot::Mutex;
 use serde::Serialize;
