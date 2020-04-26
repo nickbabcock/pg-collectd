@@ -27,7 +27,7 @@ depends = "collectd (>= 5.6.0)"
 [dependencies]
 parking_lot = "0.10"
 csv = "1"
-collectd-plugin = "0.11.0"
+collectd-plugin = "0.12"
 
 [dependencies.serde]
 version = "1"
@@ -42,8 +42,8 @@ version = "0.4"
 features = ["serde"]
 
 [dependencies.postgres]
-version = "0.15"
-features = ["with-chrono"]
+version = "0.17"
+features = ["with-chrono-0_4"]
 
 [lib]
 crate-type = ["cdylib"]
