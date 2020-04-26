@@ -1,3 +1,7 @@
+# 0.2.0 - 2019-04-26
+
+Another maintenance release but contains updates to bigger internal dependencies. If compiling pg-collectd from source and using the collectd version autodetection, pg-collectd now supports collectd 5.9 - 5.11.
+
 # 0.1.5 - 2019-10-10
 
 * Maintenance release that bumped internal dependencies
