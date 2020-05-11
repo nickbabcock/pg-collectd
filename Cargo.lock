@@ -203,9 +203,9 @@ dependencies = [
 
 [[package]]
 name = "collectd-plugin"
-version = "0.12.0"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ded01940aaa3663481139fd3e3f0424069bd0f3f12724c3b58f72555c139241"
+checksum = "6abc54f02e20b7e12aae8ece139b41eb4e02f88b410fb81384c1c65f7787b00f"
 dependencies = [
  "bindgen",
  "bitflags",
