@@ -27,7 +27,7 @@ depends = "collectd (>= 5.6.0)"
 [dependencies]
 parking_lot = "0.10"
 csv = "1"
-collectd-plugin = "0.12"
+collectd-plugin = "0.13"
 
 [dependencies.serde]
 version = "1"
