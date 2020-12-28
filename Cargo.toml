@@ -42,7 +42,7 @@ version = "0.4"
 features = ["serde"]
 
 [dependencies.postgres]
-version = "0.18"
+version = "0.19"
 features = ["with-chrono-0_4"]
 
 [lib]
