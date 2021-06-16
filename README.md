@@ -104,7 +104,7 @@ To build the repo for collectd, ensure you have [Rust
 installed](https://rustup.rs/)
 
 ```
-COLLECTD_VERSION=5.7 cargo build --release
+cargo build --release
 ```
 
 The resulting `./target/release/libpg_collectd.so` should be copied (locally
