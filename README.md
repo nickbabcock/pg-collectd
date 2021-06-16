@@ -25,14 +25,8 @@ Here are the downsides:
 
 ## Compatibility
 
-This repo is tested on the following (though compatibility isn't limited to):
-
-- collectd 5.4 (Ubuntu 14.04)
-- collectd 5.5 (Ubuntu 16.04)
-- collectd 5.7 (Ubuntu 18.04)
-- collectd 5.8 (Ubuntu 18.10) (can use package compiled for collectd 5.7)
-
-Postgres 7.4 or later is required.
+- Collectd 5.7+
+- Postgres 7.4+
 
 ## Installation
 
