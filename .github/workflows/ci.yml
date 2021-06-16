@@ -1,0 +1,53 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches:
+    - master
+  schedule:
+  - cron: '00 01 * * *'
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v1
+      with:
+        fetch-depth: 1
+
+    - name: build
+      run: cargo build
+
+    - name: release deb
+      run: |
+        cargo install cargo-deb
+        cargo deb --variant collectd57
+    
+    - name: e2e test
+      run: |
+        docker-compose build --build-arg UBUNTU_VERSION=18.04 \
+                             --build-arg COLLECTD_VERSION=collectd57 \
+                             app
+        docker-compose up --abort-on-container-exit --exit-code-from app
+
+
+    - name: Set artifact name
+      shell: bash
+      working-directory: target/debian
+      run: |
+        echo "ARTIFACT_NAME=$(echo *.deb)" >> $GITHUB_ENV
+    - uses: actions/upload-artifact@v2
+      with:
+        path: target/debian/*.deb
+        name: ${{ env.ARTIFACT_NAME }}
+        if-no-files-found: error
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: 'target/debian/*.deb'
+        prerelease: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
