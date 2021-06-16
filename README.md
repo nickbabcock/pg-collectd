@@ -1,5 +1,4 @@
-[![Build
-Status](https://travis-ci.org/nickbabcock/pg-collectd.svg?branch=master)](https://travis-ci.org/nickbabcock/pg-collectd)
+[![ci](https://github.com/nickbabcock/pg-collectd/actions/workflows/ci.yml/badge.svg)](https://github.com/nickbabcock/pg-collectd/actions/workflows/ci.yml)
 
 # pg-collectd
 
