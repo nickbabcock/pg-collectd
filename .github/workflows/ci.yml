@@ -23,13 +23,11 @@ jobs:
     - name: release deb
       run: |
         cargo install cargo-deb
-        cargo deb --variant collectd57
+        cargo deb
     
     - name: e2e test
       run: |
-        docker-compose build --build-arg UBUNTU_VERSION=18.04 \
-                             --build-arg COLLECTD_VERSION=collectd57 \
-                             app
+        docker-compose build app
         docker-compose up --abort-on-container-exit --exit-code-from app
 
 
