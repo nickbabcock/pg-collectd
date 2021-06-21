@@ -30,8 +30,7 @@ Here are the downsides:
 
 ## Installation
 
-If you're on a debian based linux distro (eg: Ubuntu) there is a fast pass,
-but first we must setup the database with the following schema:
+First we must set up the database with the following schema:
 
 ```sql
 CREATE TABLE IF NOT EXISTS collectd_metrics (
@@ -44,6 +43,19 @@ CREATE TABLE IF NOT EXISTS collectd_metrics (
    metric TEXT,
    value DOUBLE PRECISION
 );
+```
+
+- (Optional) If using the TimescaleDB extension for postgres, the statements below contains provide good defaults
+
+```sql
+SELECT create_hypertable('collectd_metrics', 'time', chunk_time_interval => interval '1 day');
+ALTER TABLE collectd_metrics SET (
+   timescaledb.compress,
+   timescaledb.compress_segmentby = 'plugin',
+   timescaledb.compress_orderby = 'time'
+);
+SELECT add_compression_policy('collectd_metrics', INTERVAL '7 days');
+SELECT add_retention_policy('collectd_metrics', INTERVAL '90 days');
 ```
 
 - Create a user that only has `INSERT` permissions on `collectd_metrics`:
@@ -101,7 +113,7 @@ file, only the CPU time for formatting the CSV is needed.
 ## Building
 
 To build the repo for collectd, ensure you have [Rust
-installed](https://rustup.rs/)
+installed](https://rustup.rs/) and then execute the build process:
 
 ```
 cargo build --release
