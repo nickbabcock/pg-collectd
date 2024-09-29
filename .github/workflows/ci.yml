@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v1
+      uses: actions/checkout@v4
       with:
         fetch-depth: 1
 
@@ -27,22 +27,21 @@ jobs:
     
     - name: e2e test
       run: |
-        docker-compose build app
-        docker-compose up --abort-on-container-exit --exit-code-from app
-
+        docker compose build app
+        docker compose up --abort-on-container-exit --exit-code-from app
 
     - name: Set artifact name
       shell: bash
       working-directory: target/debian
       run: |
         echo "ARTIFACT_NAME=$(echo *.deb)" >> $GITHUB_ENV
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v4
       with:
         path: target/debian/*.deb
         name: ${{ env.ARTIFACT_NAME }}
         if-no-files-found: error
     - name: Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
         files: 'target/debian/*.deb'
