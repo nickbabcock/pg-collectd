@@ -1,4 +1,13 @@
-# 0.2.0 - 2019-04-26
+# Unreleased
+
+A maintenance release that updates internal dependencies.
+
+- Update collectd-plugin from 0.12 to 0.16.1
+- Update the postgres driver to 0.19
+- Release one deb package for collectd 5.7 to 5.12. The deb package now declares its libc dependency (glibc 2.34 or later, for example Ubuntu 22.04 or Debian 12).
+- Remove support for collectd 5.4 and 5.5
+
+# 0.2.0 - 2020-04-26
 
 Another maintenance release but contains updates to bigger internal dependencies. If compiling pg-collectd from source and using the collectd version autodetection, pg-collectd now supports collectd 5.9 - 5.11.
 
