@@ -20,6 +20,11 @@ jobs:
     - name: build
       run: cargo build
 
+    - name: lint
+      run: |
+        cargo fmt --check
+        cargo clippy --all-targets
+
     - name: release deb
       run: |
         cargo install cargo-deb
@@ -45,6 +50,5 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       with:
         files: 'target/debian/*.deb'
-        prerelease: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
