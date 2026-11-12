@@ -1,6 +1,6 @@
 # 0.3.0 - Unreleased
 
-A maintenance release that updates internal dependencies, and fixes how the `type` and `type_instance` columns are stored.
+A maintenance release that updates internal dependencies. It also puts the `type` and `type_instance` values into the correct columns.
 
 **Breaking changes:**
 
@@ -26,7 +26,7 @@ Other changes:
 - Release one deb package, `pg-collectd_<version>-1_amd64.deb`, for collectd 5.7 to 5.12. It replaces the separate deb packages for each collectd version. The deb package now declares its libc dependency (glibc 2.34 or later, for example Ubuntu 22.04 or Debian 12).
 - Remove support for collectd 5.4, 5.5, and 5.6
 - Fix: when postgres rejected a batch on a new connection, pg-collectd kept the batch and sent it again with the next batch. Now pg-collectd discards the rejected batch, as it already did on an existing connection.
-- pg-collectd connects a maximum of one time each second, as before. Now it keeps new data in memory until the next connect attempt. Before, it discarded that data.
+- When pg-collectd sends a batch, it connects a maximum of one time each second, as before. Now it keeps new data in memory until the next connect attempt. Before, it discarded that data.
 - A flush with no new data no longer sends an empty insert to postgres
 - To build from source, you must have Rust 1.88 or later
 

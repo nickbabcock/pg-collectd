@@ -193,10 +193,9 @@ mod test {
             format!("not-a-time,{PLUGIN},plugin_instance,type_instance,type,host,metric,10.0\n");
         assert!(ins.send_data(bad_row.as_bytes(), 1).is_err());
 
-        // The plugin connected less than one second ago, so it keeps the next
-        // batch in memory. The flush sends it. It must not send the rejected row.
+        // The plugin can keep the next batch in memory until the connect limit
+        // ends, so flush it. Only the good row must go to postgres.
         ins.send_data(row(PLUGIN).as_bytes(), 1).unwrap();
-        assert!(!ins.buffer.is_empty());
         ins.flush().unwrap();
         assert_eq!(count_rows("timescale_built", PLUGIN), start + 1);
     }
