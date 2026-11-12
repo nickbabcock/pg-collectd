@@ -1,12 +1,23 @@
 # 0.3.0 - Unreleased
 
-A maintenance release that updates internal dependencies.
+A maintenance release that updates internal dependencies, and fixes how the `type` and `type_instance` columns are stored.
+
+**Breaking change:** Before this release, pg-collectd wrote the collectd type into the `type_instance` column and the type instance into the `type` column. Now each value goes into the correct column. Rows that older releases wrote still have the two values swapped. To correct them, run this statement, with the time that you installed 0.3.0:
+
+```sql
+UPDATE collectd_metrics
+SET type = type_instance, type_instance = type
+WHERE time < '<time of upgrade>';
+```
+
+If you use TimescaleDB compression, use TimescaleDB 2.11 or later, which can update compressed chunks. Also update queries and dashboards that use the swapped columns.
 
 - Update collectd-plugin from 0.12 to 0.16.1
 - Update the postgres driver to 0.19
 - Release one deb package, `pg-collectd_<version>_amd64.deb`, for collectd 5.7 to 5.12. It replaces the separate deb packages for each collectd version. The deb package now declares its libc dependency (glibc 2.34 or later, for example Ubuntu 22.04 or Debian 12).
 - Remove support for collectd 5.4, 5.5, and 5.6
 - Fix: when postgres rejected a batch on a new connection, pg-collectd kept the batch and sent it again with the next batch. Now pg-collectd discards the rejected batch, as it already did on an existing connection.
+- When postgres rejects a batch, pg-collectd keeps the connection. Before, it closed the connection, and the reconnect back-off could discard the next batch.
 - A flush with no new data no longer sends an empty insert to postgres
 - Building from source requires Rust 1.88 or later
 

@@ -26,7 +26,7 @@ Here are the downsides:
 ## Compatibility
 
 - Collectd 5.7 to 5.12
-- Postgres 7.4+ (tested with Postgres 18 and TimescaleDB 2.32)
+- Postgres 9.0+ (tested with Postgres 18 and TimescaleDB 2.32)
 - The deb package requires glibc 2.34 or later (for example: Ubuntu 22.04+ or Debian 12+)
 
 ## Installation
