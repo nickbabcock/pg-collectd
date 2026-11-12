@@ -15,7 +15,7 @@ SET type = type_instance, type_instance = type
 WHERE time < '<time of upgrade>';
 ```
 
-Do not run the statement two times, because each run swaps the values again. If more than one pg-collectd writes to the table, and you upgraded them at different times, run the statement for each pg-collectd. Add a condition on `host` for the hosts that each pg-collectd writes.
+The statement uses the time of the metric, not the time that pg-collectd wrote the row. Thus, examine the rows near the upgrade time. For example, after a restart collectd can send old values. Do not run the statement two times, because each run swaps the values again. If more than one pg-collectd writes to the table, and you upgraded them at different times, run the statement for each pg-collectd. Add a condition on `host` for the hosts that each pg-collectd writes.
 
 If you use TimescaleDB compression, you must have TimescaleDB 2.11 or later to update compressed chunks. Also update the queries and dashboards that use the swapped columns.
 
