@@ -5,7 +5,10 @@ A maintenance release that updates internal dependencies.
 - Update collectd-plugin from 0.12 to 0.16.1
 - Update the postgres driver to 0.19
 - Release one deb package, `pg-collectd_<version>_amd64.deb`, for collectd 5.7 to 5.12. It replaces the separate deb packages for each collectd version. The deb package now declares its libc dependency (glibc 2.34 or later, for example Ubuntu 22.04 or Debian 12).
-- Remove support for collectd 5.4 and 5.5
+- Remove support for collectd 5.4, 5.5, and 5.6
+- Fix: when postgres rejected a batch on a new connection, pg-collectd kept the batch and sent it again with the next batch. Now pg-collectd discards the rejected batch, as it already did on an existing connection.
+- A flush with no new data no longer sends an empty insert to postgres
+- Building from source requires Rust 1.88 or later
 
 # 0.2.0 - 2020-04-26
 

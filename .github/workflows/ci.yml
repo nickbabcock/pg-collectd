@@ -10,7 +10,8 @@ on:
 jobs:
   test:
     name: test
-    runs-on: ubuntu-latest
+    # Pin the image, because the build image sets the minimum glibc version of the deb package.
+    runs-on: ubuntu-24.04
     steps:
     - name: Checkout repository
       uses: actions/checkout@v7

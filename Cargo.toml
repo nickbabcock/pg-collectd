@@ -6,6 +6,7 @@ description = "Provides an alternative and opinionated postgres collectd writer"
 repository = "https://github.com/nickbabcock/pg-collectd"
 readme = "README.md"
 edition = "2021"
+rust-version = "1.88"
 license = "MIT"
 publish = false
 
@@ -14,10 +15,10 @@ extended-description = "See project readme for extended description"
 assets = [
   ["target/release/libpg_collectd.so", "usr/lib/collectd/pg_collectd.so", "644"]
 ]
-depends = "$auto, collectd (>= 5.7.0)"
+depends = "$auto, collectd (>= 5.7.0), collectd (<< 5.13)"
 
 [dependencies]
-parking_lot = "0.13"
+parking_lot = "0.12"
 csv = "1"
 collectd-plugin = "0.16.1"
 

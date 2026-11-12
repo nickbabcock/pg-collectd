@@ -4,6 +4,7 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 SCHEMA=$(cat "$DIR/../sql/schema.sql")
+POLICIES=$(cat "$DIR/../sql/policies.sql")
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOF
     CREATE DATABASE timescale_built;
@@ -13,9 +14,12 @@ EOF
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "timescale_built" <<EOF
     CREATE USER collectd WITH PASSWORD 'hellocollectd';
     $SCHEMA
+    $POLICIES
     GRANT INSERT ON collectd_metrics TO collectd;
 EOF
 
+# The insert_values unit test uses this database. It has no policies, because the
+# retention policy can delete old test rows while the tests run.
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "timescale_built2" <<EOF
     $SCHEMA
     GRANT INSERT ON collectd_metrics TO collectd;

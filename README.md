@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS collectd_metrics (
 );
 ```
 
-- (Optional) If using the TimescaleDB extension for postgres, the statements below provide good defaults
+- (Optional) If you use the TimescaleDB extension for postgres, the statements that follow give good defaults
 
 ```sql
 SELECT create_hypertable('collectd_metrics', 'time', chunk_time_interval => interval '1 day');
@@ -69,7 +69,7 @@ GRANT INSERT ON collectd_metrics TO collectd;
 - Download the deb package from the [latest
   release](https://github.com/nickbabcock/pg-collectd/releases/latest) (see
   the compatibility list shown earlier)
-- Install with `dpkg -i pg-collectd-*.deb`
+- Install with `apt install ./pg-collectd_*.deb`
 - Edit collectd configuration (eg: `/etc/collectd/collectd.conf`)
 
 ```
@@ -113,8 +113,8 @@ file, only the CPU time for formatting the CSV is needed.
 
 ## Building
 
-To build the repo for collectd, ensure you have [Rust
-installed](https://rustup.rs/) and then execute the build process:
+To build the repo for collectd, make sure that you have [Rust
+installed](https://rustup.rs/) (version 1.88 or later). Then do the build:
 
 ```
 cargo build --release
