@@ -13,13 +13,17 @@ use std::cell::Cell;
 use std::error;
 use std::panic::AssertUnwindSafe;
 
+/// One CSV row. The serialized names are the table columns. The field order
+/// must be the same as inserter::COLUMNS. A test makes sure of this.
 #[derive(Serialize, Debug)]
 struct Submission<'a> {
+    #[serde(rename = "time")]
     timestamp: DateTime<Utc>,
     plugin: &'a str,
     plugin_instance: Option<&'a str>,
-    type_: &'a str,
     type_instance: Option<&'a str>,
+    #[serde(rename = "type")]
+    type_: &'a str,
     host: &'a str,
     metric: &'a str,
     value: Value,
@@ -46,7 +50,7 @@ impl PluginManager for PgCollectd {
             .expect("really the only thing that should create a logger");
 
         let config: PgCollectdConfig =
-            collectd_plugin::de::from_collectd(config.unwrap_or_else(Default::default))?;
+            collectd_plugin::de::from_collectd(config.unwrap_or_default())?;
 
         let plugin = PgCollectd {
             store_rates: config.store_rates,
@@ -74,7 +78,7 @@ impl Plugin for PgCollectd {
         //  - allows some concurrency as each payload can be prepped before needing to lock for a
         //  (potential) insert
         //  - Since `Vec::new` does not allocate, it's cheap to take and set from a Cell
-        thread_local!(static TEMP_BUF: Cell<Vec<u8>> = Cell::new(Vec::new()));
+        thread_local!(static TEMP_BUF: Cell<Vec<u8>> = const { Cell::new(Vec::new()) });
         let mut v = TEMP_BUF.with(|cell| cell.take());
         let len = list.values.len();
 
@@ -129,5 +133,32 @@ impl Plugin for PgCollectd {
         let mut inserter = self.inserter.lock();
         inserter.flush()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Submission;
+    use crate::inserter::COLUMNS;
+    use collectd_plugin::Value;
+
+    #[test]
+    fn csv_fields_match_copy_columns() {
+        let submission = Submission {
+            timestamp: chrono::Utc::now(),
+            plugin: "plugin",
+            plugin_instance: None,
+            type_instance: None,
+            type_: "type",
+            host: "host",
+            metric: "metric",
+            value: Value::Gauge(1.0),
+        };
+
+        let mut wtr = csv::Writer::from_writer(Vec::new());
+        wtr.serialize(submission).unwrap();
+        let data = String::from_utf8(wtr.into_inner().unwrap()).unwrap();
+        let header = data.lines().next().unwrap();
+        assert_eq!(header, COLUMNS.replace(", ", ","));
     }
 }

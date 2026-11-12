@@ -1,11 +1,12 @@
 [package]
 name = "pg-collectd"
-version = "0.2.1-pre"
+version = "0.3.0-pre"
 authors = ["Nick Babcock <nbabcock19@hotmail.com>"]
 description = "Provides an alternative and opinionated postgres collectd writer"
-repository = "https://github.com/nickbabcock/pg_collectd"
+repository = "https://github.com/nickbabcock/pg-collectd"
 readme = "README.md"
-edition = "2018"
+edition = "2021"
+rust-version = "1.88"
 license = "MIT"
 publish = false
 
@@ -14,12 +15,12 @@ extended-description = "See project readme for extended description"
 assets = [
   ["target/release/libpg_collectd.so", "usr/lib/collectd/pg_collectd.so", "644"]
 ]
-depends = "collectd (>= 5.6.0)"
+depends = "$auto, collectd (>= 5.7.0), collectd (<< 5.13)"
 
 [dependencies]
 parking_lot = "0.12"
 csv = "1"
-collectd-plugin = "0.16"
+collectd-plugin = "0.16.1"
 
 [dependencies.serde]
 version = "1"
@@ -27,7 +28,7 @@ features = ["derive"]
 
 [dependencies.log]
 version = "0.4.20"
-features = ["serde", "std"]
+features = ["serde"]
 
 [dependencies.chrono]
 version = "0.4"

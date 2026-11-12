@@ -25,8 +25,9 @@ Here are the downsides:
 
 ## Compatibility
 
-- Collectd 5.7+
-- Postgres 7.4+
+- Collectd 5.7 to 5.12
+- Postgres 9.0+ (tested with Postgres 18 and TimescaleDB 2.32)
+- The deb package requires glibc 2.34 or later (for example: Ubuntu 22.04+ or Debian 12+)
 
 ## Installation
 
@@ -45,7 +46,7 @@ CREATE TABLE IF NOT EXISTS collectd_metrics (
 );
 ```
 
-- (Optional) If using the TimescaleDB extension for postgres, the statements below contains provide good defaults
+- (Optional) If you use the TimescaleDB extension for postgres, the statements that follow give good defaults
 
 ```sql
 SELECT create_hypertable('collectd_metrics', 'time', chunk_time_interval => interval '1 day');
@@ -65,10 +66,10 @@ CREATE USER collectd WITH PASSWORD 'xxx';
 GRANT INSERT ON collectd_metrics TO collectd;
 ```
 
-- Download the appropriate package from the [latest
+- Download the deb package from the [latest
   release](https://github.com/nickbabcock/pg-collectd/releases/latest) (see
   the compatibility list shown earlier)
-- Install with `dpkg -i pg-collectd-*.deb`
+- Install with `apt install ./pg-collectd_*.deb`
 - Edit collectd configuration (eg: `/etc/collectd/collectd.conf`)
 
 ```
@@ -88,7 +89,7 @@ Not using Ubuntu / Debian? No problem, [build from source](#building).
 ## Configuration Option
 
 - BatchSize: number of values to batch (eg: rows in the csv) before copying them to the database. Default is 100, which is extremely conservative. Test what is appropriate for you, but 500 to 1000 works well for me. Note that it is possible for the number of rows inserted to not be exactly equal to batch size, as `NaN` rates are not stored and some metrics given to write contain more than one value.
-- Connection (see [postgres connection uri documentation](https://www.postgresql.org/docs/10/static/libpq-connect.html#id-1.7.3.8.3.6))
+- Connection (see [postgres connection uri documentation](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING-URIS))
 - StoreRates: Controls whether DERIVE and COUNTER metrics are converted to a rate before sending. Default is true.
 - LogTimings: The level at which to log performance timings. The default is `DEBUG` to cut down on potential log spam, though there is no problem setting it to `INFO` (or `WARN` / `ERROR` for that matter), as only a single line is logged per batched insert.
 
@@ -97,7 +98,7 @@ Not using Ubuntu / Debian? No problem, [build from source](#building).
 The original postgres writer for collectd works by having a long lasting
 transaction writing many individual statements committed at `CommitInterval`
 seconds. [A quote from postgres's official
-documentation](https://www.postgresql.org/docs/9.2/static/populate.html) leads
+documentation](https://www.postgresql.org/docs/current/populate.html) leads
 us to ponder low hanging fruit:
 
 > Note that loading a large number of rows using COPY is almost always faster
@@ -112,8 +113,8 @@ file, only the CPU time for formatting the CSV is needed.
 
 ## Building
 
-To build the repo for collectd, ensure you have [Rust
-installed](https://rustup.rs/) and then execute the build process:
+To build the repo for collectd, make sure that you have [Rust
+installed](https://rustup.rs/) (version 1.88 or later). Then do the build:
 
 ```
 cargo build --release

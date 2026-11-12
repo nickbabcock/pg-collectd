@@ -1,4 +1,36 @@
-# 0.2.0 - 2019-04-26
+# 0.3.0 - Unreleased
+
+A maintenance release that updates internal dependencies. It also puts the `type` and `type_instance` values into the correct columns.
+
+**Breaking changes:**
+
+- pg-collectd now names the columns when it copies rows to postgres. Thus, the table must use the column names from the README.
+- The `type` and `type_instance` values now go into the correct columns. Older releases swapped the two values if the table had the column order from the README (`type_instance` before `type`).
+
+To correct the old rows in a table with the README column order, run this statement one time. Use the time when you upgraded pg-collectd:
+
+```sql
+UPDATE collectd_metrics
+SET type = type_instance, type_instance = type
+WHERE time < '<time of upgrade>';
+```
+
+The statement uses the time of the metric, not the time that pg-collectd wrote the row. Thus, examine the rows near the upgrade time. For example, after a restart collectd can send old values. Do not run the statement two times, because each run swaps the values again. If more than one pg-collectd writes to the table, and you upgraded them at different times, run the statement for each pg-collectd. Add a condition on `host` for the hosts that each pg-collectd writes.
+
+If you use TimescaleDB compression, you must have TimescaleDB 2.11 or later to update compressed chunks. Also update the queries and dashboards that use the swapped columns.
+
+Other changes:
+
+- Update collectd-plugin from 0.12 to 0.16.1
+- Update the postgres driver to 0.19
+- Release one deb package, `pg-collectd_<version>-1_amd64.deb`, for collectd 5.7 to 5.12. It replaces the separate deb packages for each collectd version. The deb package now declares its libc dependency (glibc 2.34 or later, for example Ubuntu 22.04 or Debian 12).
+- Remove support for collectd 5.4, 5.5, and 5.6
+- Fix: when postgres rejected a batch on a new connection, pg-collectd kept the batch and sent it again with the next batch. Now pg-collectd discards the rejected batch, as it already did on an existing connection.
+- When pg-collectd sends a batch, it connects a maximum of one time each second, as before. Now it keeps new data in memory until the next connect attempt. Before, it discarded that data.
+- A flush with no new data no longer sends an empty insert to postgres
+- To build from source, you must have Rust 1.88 or later
+
+# 0.2.0 - 2020-04-26
 
 Another maintenance release but contains updates to bigger internal dependencies. If compiling pg-collectd from source and using the collectd version autodetection, pg-collectd now supports collectd 5.9 - 5.11.
 
