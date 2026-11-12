@@ -13,13 +13,15 @@ use std::cell::Cell;
 use std::error;
 use std::panic::AssertUnwindSafe;
 
+/// One CSV row. The field order must be the same as the column list in the
+/// COPY statement in inserter.rs.
 #[derive(Serialize, Debug)]
 struct Submission<'a> {
     timestamp: DateTime<Utc>,
     plugin: &'a str,
     plugin_instance: Option<&'a str>,
-    type_: &'a str,
     type_instance: Option<&'a str>,
+    type_: &'a str,
     host: &'a str,
     metric: &'a str,
     value: Value,

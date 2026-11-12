@@ -43,13 +43,16 @@ fi
 kill "$COLLECTD_PID"
 wait "$COLLECTD_PID" || true
 
-COUNT=$(PGPASSWORD=my_rust_test psql -tA -h timescale timescale_built postgres -c "SELECT COUNT(*) from collectd_metrics")
+# Count only the rows from collectd, not the rows from the unit tests. The
+# type column must contain the collectd type, which is "load" for this plugin.
+COUNT=$(PGPASSWORD=my_rust_test psql -tA -h timescale timescale_built postgres \
+	-c "SELECT COUNT(*) FROM collectd_metrics WHERE plugin = 'load' AND type = 'load' AND type_instance IS NULL")
 
 echo "rows: $COUNT"
 cat /var/log/collectd.log
 
 if [ "$COUNT" -le "0" ]; then
-	echo "no rows were inserted"
+	echo "pg_collectd did not insert the load metrics into the correct columns"
 	exit 1
 fi
 

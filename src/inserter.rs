@@ -29,7 +29,12 @@ impl PgInserter {
     }
 
     fn postgres_insert(client: &mut Client, data: &[u8]) -> Result<u64, PgError> {
-        let mut writer = client.copy_in("COPY collectd_metrics FROM STDIN WITH (FORMAT CSV)")?;
+        // Name the columns, so that the CSV fields go into the correct columns.
+        // The field order must be the same as the order in plugin::Submission.
+        let mut writer = client.copy_in(
+            "COPY collectd_metrics (time, plugin, plugin_instance, type_instance, type, host, metric, value) \
+             FROM STDIN WITH (FORMAT CSV)",
+        )?;
         writer.write_all(data)?;
         let rows = writer.finish()?;
         Ok(rows)
@@ -50,9 +55,14 @@ impl PgInserter {
         PgInserter::postgres_insert(client, &self.buffer)
     }
 
+    fn reset_batch(&mut self) {
+        self.batched = 0;
+        self.buffer.clear();
+    }
+
     pub fn flush(&mut self) -> Result<(), PgError> {
         if self.buffer.is_empty() {
-            self.batched = 0;
+            self.reset_batch();
             return Ok(());
         }
 
@@ -72,14 +82,15 @@ impl PgInserter {
                     .map(|x| x.to_string())
                     .unwrap_or_else(|_| String::from("<error>"))
             );
-        } else {
+        } else if self.client.as_ref().is_some_and(|c| c.is_closed()) {
+            // Connect again only if the connection is closed. If postgres
+            // rejected the data, the connection is still good.
             self.client = None
         }
 
         // Clear the batch also when the insert fails. If we keep it, postgres
         // can reject the same rows again and again, and the buffer gets larger.
-        self.batched = 0;
-        self.buffer.clear();
+        self.reset_batch();
         res.map(|_| ())
     }
 
@@ -94,8 +105,7 @@ impl PgInserter {
                 .last_connect
                 .map(|x| Instant::now().duration_since(x).as_secs() == 0);
             if self.client.is_none() && too_soon.unwrap_or(false) {
-                self.batched = 0;
-                self.buffer.clear();
+                self.reset_batch();
                 Err(PgError::ConnectBackoff)
             } else {
                 self.flush()
@@ -164,8 +174,8 @@ mod test {
         let bad_row = b"not-a-time,plugin,plugin_instance,type_instance,type,host,metric,10.0\n";
         assert!(ins.send_data(bad_row, 1).is_err());
 
-        // Wait until the reconnect back-off stops.
-        std::thread::sleep(std::time::Duration::from_millis(1100));
+        // Keep the connection, so that the reconnect back-off does not discard the next batch.
+        assert!(ins.client.is_some());
 
         // The next batch must not contain the rejected row.
         let good_row = format!(
