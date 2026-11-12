@@ -13,14 +13,16 @@ use std::cell::Cell;
 use std::error;
 use std::panic::AssertUnwindSafe;
 
-/// One CSV row. The field order must be the same as the column list in the
-/// COPY statement in inserter.rs.
+/// One CSV row. The serialized names are the table columns. The field order
+/// must be the same as inserter::COLUMNS. A test makes sure of this.
 #[derive(Serialize, Debug)]
 struct Submission<'a> {
+    #[serde(rename = "time")]
     timestamp: DateTime<Utc>,
     plugin: &'a str,
     plugin_instance: Option<&'a str>,
     type_instance: Option<&'a str>,
+    #[serde(rename = "type")]
     type_: &'a str,
     host: &'a str,
     metric: &'a str,
@@ -131,5 +133,32 @@ impl Plugin for PgCollectd {
         let mut inserter = self.inserter.lock();
         inserter.flush()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Submission;
+    use crate::inserter::COLUMNS;
+    use collectd_plugin::Value;
+
+    #[test]
+    fn csv_fields_match_copy_columns() {
+        let submission = Submission {
+            timestamp: chrono::Utc::now(),
+            plugin: "plugin",
+            plugin_instance: None,
+            type_instance: None,
+            type_: "type",
+            host: "host",
+            metric: "metric",
+            value: Value::Gauge(1.0),
+        };
+
+        let mut wtr = csv::Writer::from_writer(Vec::new());
+        wtr.serialize(submission).unwrap();
+        let data = String::from_utf8(wtr.into_inner().unwrap()).unwrap();
+        let header = data.lines().next().unwrap();
+        assert_eq!(header, COLUMNS.replace(", ", ","));
     }
 }

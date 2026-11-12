@@ -1,9 +1,13 @@
 use crate::errors::PgError;
-use chrono::Duration;
 use log::{info, log, Level};
 use postgres::{self, Client, NoTls};
 use std::io::Write;
 use std::time::Instant;
+
+/// The table columns, in the order of the CSV fields. A test in plugin.rs
+/// makes sure that plugin::Submission writes its fields in this order.
+pub(crate) const COLUMNS: &str =
+    "time, plugin, plugin_instance, type_instance, type, host, metric, value";
 
 pub struct PgInserter {
     uri: String,
@@ -12,7 +16,7 @@ pub struct PgInserter {
     buffer: Vec<u8>,
     batched: usize,
     batch_limit: usize,
-    last_failed_connect: Option<Instant>,
+    last_connect: Option<Instant>,
 }
 
 impl PgInserter {
@@ -24,35 +28,30 @@ impl PgInserter {
             client: None,
             buffer: Vec::new(),
             batched: 0,
-            last_failed_connect: None,
+            last_connect: None,
         }
     }
 
     fn postgres_insert(client: &mut Client, data: &[u8]) -> Result<u64, PgError> {
         // Name the columns, so that the CSV fields go into the correct columns.
-        // The field order must be the same as the order in plugin::Submission.
-        let mut writer = client.copy_in(
-            "COPY collectd_metrics (time, plugin, plugin_instance, type_instance, type, host, metric, value) \
-             FROM STDIN WITH (FORMAT CSV)",
-        )?;
+        let statement = format!("COPY collectd_metrics ({COLUMNS}) FROM STDIN WITH (FORMAT CSV)");
+        let mut writer = client.copy_in(statement.as_str())?;
         writer.write_all(data)?;
         let rows = writer.finish()?;
         Ok(rows)
     }
 
     /// Connect if necessary, then copy the buffer to postgres.
-    fn insert_buffer(&mut self, start: Instant) -> Result<u64, PgError> {
+    fn insert_buffer(&mut self) -> Result<u64, PgError> {
         let client = match self.client.as_mut() {
             Some(client) => client,
             None => {
                 info!("initializing new connection");
-                match Client::connect(self.uri.as_str(), NoTls) {
-                    Ok(client) => self.client.insert(client),
-                    Err(e) => {
-                        self.last_failed_connect = Some(start);
-                        return Err(e.into());
-                    }
-                }
+                let result = Client::connect(self.uri.as_str(), NoTls);
+
+                // Record the time after the attempt, because a connect can take many seconds.
+                self.last_connect = Some(Instant::now());
+                self.client.insert(result?)
             }
         };
 
@@ -71,7 +70,7 @@ impl PgInserter {
         }
 
         let start = Instant::now();
-        let res = self.insert_buffer(start);
+        let res = self.insert_buffer();
 
         if let Ok(rows) = res {
             log!(
@@ -81,10 +80,7 @@ impl PgInserter {
                 self.batched,
                 self.buffer.len(),
                 self.buffer.capacity(),
-                Duration::from_std(Instant::now().duration_since(start))
-                    .map(|x| x.num_milliseconds())
-                    .map(|x| x.to_string())
-                    .unwrap_or_else(|_| String::from("<error>"))
+                start.elapsed().as_millis()
             );
         } else {
             // Connect again for the next batch. The connection can be bad, for
@@ -101,23 +97,22 @@ impl PgInserter {
     pub fn send_data(&mut self, data: &[u8], values: usize) -> Result<(), PgError> {
         self.buffer.extend_from_slice(data);
         self.batched += values;
-        if self.batched >= self.batch_limit {
-            // After a failed connect, do not try to connect again in the same
-            // second. Many connect attempts do not help a server that is down.
-            // The write_graphite plugin does the same. A failed insert does not
-            // start this back-off, so the next batch can use a new connection.
-            let too_soon = self
-                .last_failed_connect
-                .is_some_and(|x| x.elapsed().as_secs() == 0);
-            if self.client.is_none() && too_soon && !self.buffer.is_empty() {
-                self.reset_batch();
-                Err(PgError::ConnectBackoff)
-            } else {
-                self.flush()
-            }
-        } else {
-            Ok(())
+        if self.batched < self.batch_limit {
+            return Ok(());
         }
+
+        // Connect a maximum of one time each second. Many connect attempts do
+        // not help a server that is down. The write_graphite plugin does the
+        // same. Until the second ends, keep the batch in memory. The next batch
+        // or flush after that time sends it.
+        let too_soon = self
+            .last_connect
+            .is_some_and(|x| x.elapsed().as_secs() == 0);
+        if self.client.is_none() && too_soon {
+            return Ok(());
+        }
+
+        self.flush()
     }
 }
 
@@ -126,6 +121,7 @@ mod test {
     use super::PgInserter;
     use crate::errors::PgError;
     use postgres::{Client, NoTls};
+    use std::time::Duration;
 
     const CONNECTION: &str = "postgresql://collectd:hellocollectd@timescale/timescale_built2";
     const CONNECTION_E2E: &str = "postgresql://collectd:hellocollectd@timescale/timescale_built";
@@ -194,9 +190,11 @@ mod test {
             format!("not-a-time,{PLUGIN},plugin_instance,type_instance,type,host,metric,10.0\n");
         assert!(ins.send_data(bad_row.as_bytes(), 1).is_err());
 
-        // The next batch must not contain the rejected row. A failed insert
-        // does not start the reconnect back-off, so this batch goes to postgres.
+        // The plugin connected less than one second ago, so it keeps the next
+        // batch in memory. The flush sends it. It must not send the rejected row.
         ins.send_data(row(PLUGIN).as_bytes(), 1).unwrap();
+        assert!(!ins.buffer.is_empty());
+        ins.flush().unwrap();
         assert_eq!(count_rows("timescale_built", PLUGIN), start + 1);
     }
 
@@ -227,20 +225,25 @@ mod test {
     }
 
     #[test]
-    fn failed_connect_starts_back_off() {
+    fn connect_rate_is_limited() {
         // Nothing listens on this port, so the connect fails.
         let uri = String::from("postgresql://collectd:hellocollectd@timescale:1/timescale_built");
         let mut ins = PgInserter::new(uri, 1, log::Level::Info);
         let err = ins
-            .send_data(row("back_off_test").as_bytes(), 1)
+            .send_data(row("rate_limit_test").as_bytes(), 1)
             .unwrap_err();
         assert!(matches!(err, PgError::Postgres(_)));
 
-        // The next batch in the same second does not try to connect.
-        let err = ins
-            .send_data(row("back_off_test").as_bytes(), 1)
-            .unwrap_err();
-        assert!(matches!(err, PgError::ConnectBackoff));
+        // In the same second, the plugin keeps the batch and does not connect.
+        let before = ins.last_connect;
+        ins.send_data(row("rate_limit_test").as_bytes(), 1).unwrap();
+        assert_eq!(ins.last_connect, before);
+        assert!(!ins.buffer.is_empty());
+
+        // After the second ends, the plugin tries to connect again.
+        std::thread::sleep(Duration::from_secs(1));
+        assert!(ins.send_data(row("rate_limit_test").as_bytes(), 1).is_err());
+        assert!(ins.last_connect.unwrap() > before.unwrap());
         assert!(ins.buffer.is_empty());
     }
 }
