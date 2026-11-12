@@ -14,7 +14,7 @@ extended-description = "See project readme for extended description"
 assets = [
   ["target/release/libpg_collectd.so", "usr/lib/collectd/pg_collectd.so", "644"]
 ]
-depends = "collectd (>= 5.6.0)"
+depends = "$auto, collectd (>= 5.7.0)"
 
 [dependencies]
 parking_lot = "0.13"
