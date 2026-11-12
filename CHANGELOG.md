@@ -1,4 +1,4 @@
-# 0.3.0 - Unreleased
+# 0.3.0 - 2026-11-12
 
 A maintenance release that updates internal dependencies. It also puts the `type` and `type_instance` values into the correct columns.
 
