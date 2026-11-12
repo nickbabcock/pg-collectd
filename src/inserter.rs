@@ -1,7 +1,7 @@
 use crate::errors::PgError;
 use chrono::Duration;
 use log::{info, log, Level};
-use postgres::{self, Client, NoTls};
+use postgres::{self, error::Severity, Client, NoTls};
 use std::io::Write;
 use std::time::Instant;
 
@@ -82,14 +82,17 @@ impl PgInserter {
                     .map(|x| x.to_string())
                     .unwrap_or_else(|_| String::from("<error>"))
             );
-        } else if self.client.as_ref().is_some_and(|c| c.is_closed()) {
-            // Connect again only if the connection is closed. If postgres
-            // rejected the data, the connection is still good.
-            self.client = None
+        } else {
+            // Keep the connection only if postgres rejected the data. For all
+            // other errors, for example a server restart, connect again.
+            let rejected = res.as_ref().err().is_some_and(is_data_rejection);
+            if !rejected || self.client.as_ref().is_some_and(|c| c.is_closed()) {
+                self.client = None
+            }
         }
 
         // Clear the batch also when the insert fails. If we keep it, postgres
-        // can reject the same rows again and again, and the buffer gets larger.
+        // can reject the same rows again and again, and the buffer becomes larger.
         self.reset_batch();
         res.map(|_| ())
     }
@@ -116,6 +119,17 @@ impl PgInserter {
     }
 }
 
+/// Return true if postgres rejected the data with an error that does not
+/// close the connection. A FATAL error, for example, closes the connection.
+fn is_data_rejection(err: &PgError) -> bool {
+    match err {
+        PgError::Postgres(e) => {
+            e.as_db_error().and_then(|db| db.parsed_severity()) == Some(Severity::Error)
+        }
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::PgInserter;
@@ -124,21 +138,33 @@ mod test {
     const CONNECTION: &str = "postgresql://collectd:hellocollectd@timescale/timescale_built2";
     const CONNECTION_E2E: &str = "postgresql://collectd:hellocollectd@timescale/timescale_built";
 
-    fn count_rows() -> i64 {
-        Client::connect(
-            "postgresql://postgres:my_rust_test@timescale/timescale_built2",
-            NoTls,
+    fn admin(db: &str) -> Client {
+        let uri = format!("postgresql://postgres:my_rust_test@timescale/{db}");
+        Client::connect(&uri, NoTls).unwrap()
+    }
+
+    /// Count the rows that have this plugin name.
+    fn count_rows(db: &str, plugin: &str) -> i64 {
+        admin(db)
+            .query_one(
+                "SELECT COUNT(*) FROM collectd_metrics WHERE plugin = $1",
+                &[&plugin],
+            )
+            .unwrap()
+            .get(0)
+    }
+
+    fn row(plugin: &str) -> String {
+        format!(
+            "{},{plugin},plugin_instance,type_instance,type,host,metric,10.0\n",
+            chrono::Utc::now().to_rfc3339()
         )
-        .unwrap()
-        .query_one("SELECT COUNT(*) FROM collectd_metrics", &[])
-        .unwrap()
-        .get(0)
     }
 
     #[test]
     fn insert_values() {
         let mut ins = PgInserter::new(String::from(CONNECTION), 10, log::Level::Info);
-        let start = count_rows();
+        let start = count_rows("timescale_built2", "plugin");
 
         // Simulate ten rows inserting to exceed batch
         ins.send_data(
@@ -146,7 +172,7 @@ mod test {
             10,
         )
         .unwrap();
-        assert_eq!(count_rows(), start + 1);
+        assert_eq!(count_rows("timescale_built2", "plugin"), start + 1);
 
         // Simulate adding one row
         ins.send_data(
@@ -154,7 +180,7 @@ mod test {
             1,
         )
         .unwrap();
-        assert_eq!(count_rows(), start + 1);
+        assert_eq!(count_rows("timescale_built2", "plugin"), start + 1);
 
         // Simulate adding nine more to cause copy insert
         ins.send_data(
@@ -162,26 +188,52 @@ mod test {
             9,
         )
         .unwrap();
-        assert_eq!(count_rows(), start + 3);
+        assert_eq!(count_rows("timescale_built2", "plugin"), start + 3);
     }
 
     #[test]
     fn failed_batch_is_discarded() {
         // Use a different database, so that the row counts in insert_values do not change.
+        const PLUGIN: &str = "failed_batch_test";
         let mut ins = PgInserter::new(String::from(CONNECTION_E2E), 1, log::Level::Info);
+        let start = count_rows("timescale_built", PLUGIN);
 
         // The connection is good, but postgres rejects the row.
-        let bad_row = b"not-a-time,plugin,plugin_instance,type_instance,type,host,metric,10.0\n";
-        assert!(ins.send_data(bad_row, 1).is_err());
+        let bad_row =
+            format!("not-a-time,{PLUGIN},plugin_instance,type_instance,type,host,metric,10.0\n");
+        assert!(ins.send_data(bad_row.as_bytes(), 1).is_err());
 
         // Keep the connection, so that the reconnect back-off does not discard the next batch.
         assert!(ins.client.is_some());
 
         // The next batch must not contain the rejected row.
-        let good_row = format!(
-            "{},plugin,plugin_instance,type_instance,type,host,metric,10.0\n",
-            chrono::Utc::now().to_rfc3339()
-        );
-        ins.send_data(good_row.as_bytes(), 1).unwrap();
+        ins.send_data(row(PLUGIN).as_bytes(), 1).unwrap();
+        assert_eq!(count_rows("timescale_built", PLUGIN), start + 1);
+    }
+
+    #[test]
+    fn closed_connection_is_dropped() {
+        const APP: &str = "pg_collectd_closed_connection_test";
+        let uri = format!("{CONNECTION_E2E}?application_name={APP}");
+        let mut ins = PgInserter::new(uri, 1, log::Level::Info);
+        ins.send_data(row("closed_connection_test").as_bytes(), 1)
+            .unwrap();
+
+        // Stop the server process for this connection, and wait until it stops.
+        let stopped: bool = admin("timescale_built")
+            .query_one(
+                "SELECT pg_terminate_backend(pid, 5000) FROM pg_stat_activity \
+                 WHERE application_name = $1",
+                &[&APP],
+            )
+            .unwrap()
+            .get(0);
+        assert!(stopped);
+
+        // The insert fails, and the plugin must connect again for the next batch.
+        assert!(ins
+            .send_data(row("closed_connection_test").as_bytes(), 1)
+            .is_err());
+        assert!(ins.client.is_none());
     }
 }
