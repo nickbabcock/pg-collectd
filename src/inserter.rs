@@ -1,5 +1,5 @@
 use crate::errors::PgError;
-use log::{info, log, Level};
+use log::{info, log, warn, Level};
 use postgres::{self, Client, NoTls};
 use std::io::Write;
 use std::time::Instant;
@@ -49,7 +49,7 @@ impl PgInserter {
                 info!("initializing new connection");
                 let result = Client::connect(self.uri.as_str(), NoTls);
 
-                // Record the time after the attempt, because a connect can take many seconds.
+                // Record the time after the attempt, because it can take many seconds to connect.
                 self.last_connect = Some(Instant::now());
                 self.client.insert(result?)
             }
@@ -83,6 +83,8 @@ impl PgInserter {
                 start.elapsed().as_millis()
             );
         } else {
+            warn!("discarded {} values", self.batched);
+
             // Connect again for the next batch. The connection can be bad, for
             // example after a server restart.
             self.client = None
@@ -101,10 +103,11 @@ impl PgInserter {
             return Ok(());
         }
 
-        // Connect a maximum of one time each second. Many connect attempts do
-        // not help a server that is down. The write_graphite plugin does the
-        // same. Until the second ends, keep the batch in memory. The next batch
-        // or flush after that time sends it.
+        // Connect a maximum of one time each second. If the server is down, it
+        // does not help to try to connect many times. The write_graphite plugin
+        // does the same. Until the second ends, keep the batch in memory. The
+        // next batch after that time sends it. A flush from collectd sends it
+        // immediately, because collectd also flushes when it stops.
         let too_soon = self
             .last_connect
             .is_some_and(|x| x.elapsed().as_secs() == 0);

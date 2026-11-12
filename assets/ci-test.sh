@@ -49,7 +49,7 @@ COUNT=$(PGPASSWORD=my_rust_test psql -tA -h timescale timescale_built postgres \
 	-c "SELECT COUNT(*) FROM collectd_metrics WHERE plugin = 'load' AND type = 'load' AND type_instance IS NULL")
 
 echo "rows: $COUNT"
-cat /var/log/collectd.log
+cat /var/log/collectd.log || true
 
 if [ "$COUNT" -le "0" ]; then
 	echo "pg_collectd did not insert the load metrics into the correct columns"
