@@ -3,9 +3,9 @@ name = "pg-collectd"
 version = "0.2.1-pre"
 authors = ["Nick Babcock <nbabcock19@hotmail.com>"]
 description = "Provides an alternative and opinionated postgres collectd writer"
-repository = "https://github.com/nickbabcock/pg_collectd"
+repository = "https://github.com/nickbabcock/pg-collectd"
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 license = "MIT"
 publish = false
 
@@ -17,9 +17,9 @@ assets = [
 depends = "collectd (>= 5.6.0)"
 
 [dependencies]
-parking_lot = "0.12"
+parking_lot = "0.13"
 csv = "1"
-collectd-plugin = "0.16"
+collectd-plugin = "0.16.1"
 
 [dependencies.serde]
 version = "1"
@@ -27,7 +27,7 @@ features = ["derive"]
 
 [dependencies.log]
 version = "0.4.20"
-features = ["serde", "std"]
+features = ["serde"]
 
 [dependencies.chrono]
 version = "0.4"

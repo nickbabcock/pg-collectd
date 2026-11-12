@@ -46,7 +46,7 @@ impl PluginManager for PgCollectd {
             .expect("really the only thing that should create a logger");
 
         let config: PgCollectdConfig =
-            collectd_plugin::de::from_collectd(config.unwrap_or_else(Default::default))?;
+            collectd_plugin::de::from_collectd(config.unwrap_or_default())?;
 
         let plugin = PgCollectd {
             store_rates: config.store_rates,
@@ -74,7 +74,7 @@ impl Plugin for PgCollectd {
         //  - allows some concurrency as each payload can be prepped before needing to lock for a
         //  (potential) insert
         //  - Since `Vec::new` does not allocate, it's cheap to take and set from a Cell
-        thread_local!(static TEMP_BUF: Cell<Vec<u8>> = Cell::new(Vec::new()));
+        thread_local!(static TEMP_BUF: Cell<Vec<u8>> = const { Cell::new(Vec::new()) });
         let mut v = TEMP_BUF.with(|cell| cell.take());
         let len = list.values.len();
 

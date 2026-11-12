@@ -72,7 +72,7 @@ impl PgInserter {
     }
 
     pub fn send_data(&mut self, data: &[u8], values: usize) -> Result<(), PgError> {
-        self.buffer.extend_from_slice(&data[..]);
+        self.buffer.extend_from_slice(data);
         self.batched += values;
         if self.batched >= self.batch_limit {
             // If we are not connected and we've recently allocated a connection then we should not
