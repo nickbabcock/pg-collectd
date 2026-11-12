@@ -18,8 +18,9 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "timescale_built" <
     GRANT INSERT ON collectd_metrics TO collectd;
 EOF
 
-# The insert_values unit test uses this database. It has no policies, because the
-# retention policy can delete old test rows while the tests run.
+# The insert_values unit test uses this database. Its rows are from 2004, so
+# this database has no policies. The retention policy can delete the rows
+# while the test runs.
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "timescale_built2" <<EOF
     $SCHEMA
     GRANT INSERT ON collectd_metrics TO collectd;

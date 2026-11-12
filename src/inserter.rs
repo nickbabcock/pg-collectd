@@ -1,7 +1,7 @@
 use crate::errors::PgError;
 use chrono::Duration;
 use log::{info, log, Level};
-use postgres::{self, error::Severity, Client, NoTls};
+use postgres::{self, Client, NoTls};
 use std::io::Write;
 use std::time::Instant;
 
@@ -12,7 +12,7 @@ pub struct PgInserter {
     buffer: Vec<u8>,
     batched: usize,
     batch_limit: usize,
-    last_connect: Option<Instant>,
+    last_failed_connect: Option<Instant>,
 }
 
 impl PgInserter {
@@ -24,7 +24,7 @@ impl PgInserter {
             client: None,
             buffer: Vec::new(),
             batched: 0,
-            last_connect: None,
+            last_failed_connect: None,
         }
     }
 
@@ -46,9 +46,13 @@ impl PgInserter {
             Some(client) => client,
             None => {
                 info!("initializing new connection");
-                self.last_connect = Some(start);
-                self.client
-                    .insert(Client::connect(self.uri.as_str(), NoTls)?)
+                match Client::connect(self.uri.as_str(), NoTls) {
+                    Ok(client) => self.client.insert(client),
+                    Err(e) => {
+                        self.last_failed_connect = Some(start);
+                        return Err(e.into());
+                    }
+                }
             }
         };
 
@@ -83,12 +87,9 @@ impl PgInserter {
                     .unwrap_or_else(|_| String::from("<error>"))
             );
         } else {
-            // Keep the connection only if postgres rejected the data. For all
-            // other errors, for example a server restart, connect again.
-            let rejected = res.as_ref().err().is_some_and(is_data_rejection);
-            if !rejected || self.client.as_ref().is_some_and(|c| c.is_closed()) {
-                self.client = None
-            }
+            // Connect again for the next batch. The connection can be bad, for
+            // example after a server restart.
+            self.client = None
         }
 
         // Clear the batch also when the insert fails. If we keep it, postgres
@@ -101,13 +102,14 @@ impl PgInserter {
         self.buffer.extend_from_slice(data);
         self.batched += values;
         if self.batched >= self.batch_limit {
-            // If we are not connected and we've recently allocated a connection then we should not
-            // even try and insert as spamming connection attempts helps no one. The impetus for
-            // this is taken from the write_graphite plugin
+            // After a failed connect, do not try to connect again in the same
+            // second. Many connect attempts do not help a server that is down.
+            // The write_graphite plugin does the same. A failed insert does not
+            // start this back-off, so the next batch can use a new connection.
             let too_soon = self
-                .last_connect
-                .map(|x| Instant::now().duration_since(x).as_secs() == 0);
-            if self.client.is_none() && too_soon.unwrap_or(false) {
+                .last_failed_connect
+                .is_some_and(|x| x.elapsed().as_secs() == 0);
+            if self.client.is_none() && too_soon && !self.buffer.is_empty() {
                 self.reset_batch();
                 Err(PgError::ConnectBackoff)
             } else {
@@ -119,20 +121,10 @@ impl PgInserter {
     }
 }
 
-/// Return true if postgres rejected the data with an error that does not
-/// close the connection. A FATAL error, for example, closes the connection.
-fn is_data_rejection(err: &PgError) -> bool {
-    match err {
-        PgError::Postgres(e) => {
-            e.as_db_error().and_then(|db| db.parsed_severity()) == Some(Severity::Error)
-        }
-        _ => false,
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::PgInserter;
+    use crate::errors::PgError;
     use postgres::{Client, NoTls};
 
     const CONNECTION: &str = "postgresql://collectd:hellocollectd@timescale/timescale_built2";
@@ -193,7 +185,6 @@ mod test {
 
     #[test]
     fn failed_batch_is_discarded() {
-        // Use a different database, so that the row counts in insert_values do not change.
         const PLUGIN: &str = "failed_batch_test";
         let mut ins = PgInserter::new(String::from(CONNECTION_E2E), 1, log::Level::Info);
         let start = count_rows("timescale_built", PLUGIN);
@@ -203,10 +194,8 @@ mod test {
             format!("not-a-time,{PLUGIN},plugin_instance,type_instance,type,host,metric,10.0\n");
         assert!(ins.send_data(bad_row.as_bytes(), 1).is_err());
 
-        // Keep the connection, so that the reconnect back-off does not discard the next batch.
-        assert!(ins.client.is_some());
-
-        // The next batch must not contain the rejected row.
+        // The next batch must not contain the rejected row. A failed insert
+        // does not start the reconnect back-off, so this batch goes to postgres.
         ins.send_data(row(PLUGIN).as_bytes(), 1).unwrap();
         assert_eq!(count_rows("timescale_built", PLUGIN), start + 1);
     }
@@ -235,5 +224,23 @@ mod test {
             .send_data(row("closed_connection_test").as_bytes(), 1)
             .is_err());
         assert!(ins.client.is_none());
+    }
+
+    #[test]
+    fn failed_connect_starts_back_off() {
+        // Nothing listens on this port, so the connect fails.
+        let uri = String::from("postgresql://collectd:hellocollectd@timescale:1/timescale_built");
+        let mut ins = PgInserter::new(uri, 1, log::Level::Info);
+        let err = ins
+            .send_data(row("back_off_test").as_bytes(), 1)
+            .unwrap_err();
+        assert!(matches!(err, PgError::Postgres(_)));
+
+        // The next batch in the same second does not try to connect.
+        let err = ins
+            .send_data(row("back_off_test").as_bytes(), 1)
+            .unwrap_err();
+        assert!(matches!(err, PgError::ConnectBackoff));
+        assert!(ins.buffer.is_empty());
     }
 }
